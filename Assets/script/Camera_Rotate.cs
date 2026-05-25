@@ -4,23 +4,34 @@ public class Camera_Rotate : MonoBehaviour
 {
     public float rotateSpeed = 100f;
     float tempX;
-     void Update()
+
+    [Header("반동")]
+    public float recoilSpeed = 15f;
+
+    private float currentRecoilY = 0f;
+    private float targetRecoilY = 0f;
+    private float currentRecoilX = 0f;
+    private float targetRecoilX = 0f;
+
+    void Update()
     {
-        // 마우스의 X축 움직임을 받아서 저장
         float mouseMoveY = Input.GetAxis("Mouse Y");
-        transform.Rotate(-mouseMoveY * rotateSpeed * Time.deltaTime, 0, 0);
+        tempX -= mouseMoveY * rotateSpeed * Time.deltaTime;
+        tempX = Mathf.Clamp(tempX, -90f + currentRecoilY, 90f + currentRecoilY);
 
-        if (transform.eulerAngles.x > 180)
-        {
-            tempX = transform.eulerAngles.x - 360;
-        }
-        else
-        {
-            tempX = transform.eulerAngles.x;
-        }
+        currentRecoilY = Mathf.Lerp(currentRecoilY, targetRecoilY, Time.deltaTime * recoilSpeed);
+        currentRecoilX = Mathf.Lerp(currentRecoilX, targetRecoilX, Time.deltaTime * recoilSpeed);
+        targetRecoilY = 0f;
+        targetRecoilX = 0f;
 
-        tempX = Mathf.Clamp(tempX, -30f, 30f);
+        float finalX = tempX - currentRecoilY;
+        transform.eulerAngles = new Vector3(finalX, transform.eulerAngles.y + currentRecoilX, 0f);
+    }
 
-        transform.eulerAngles = new Vector3(tempX, transform.eulerAngles.y, transform.eulerAngles.z);
+    public void AddRecoil(float vertical, float horizontal)
+    {
+        targetRecoilY += vertical;
+        tempX -= vertical;
+        targetRecoilX += Random.Range(-horizontal, horizontal); // 좌우 랜덤
     }
 }

@@ -131,7 +131,6 @@ GameObject:
   - component: {fileID: 74396052}
   - component: {fileID: 74396051}
   - component: {fileID: 74396050}
-  - component: {fileID: 74396054}
   m_Layer: 0
   m_Name: Cube
   m_TagString: Untagged
@@ -226,25 +225,12 @@ Transform:
   m_GameObject: {fileID: 74396049}
   serializedVersion: 2
   m_LocalRotation: {x: 0.15101929, y: 0.44135457, z: 0.07381092, w: 0.8814484}
-  m_LocalPosition: {x: 0.028, y: 0.114, z: 0.495}
-  m_LocalScale: {x: 0.18, y: 0.11, z: 0.71}
+  m_LocalPosition: {x: 0.028, y: -0.25, z: 0.495}
+  m_LocalScale: {x: 0.18, y: 0.10999998, z: 0.71}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1938334218}
+  m_Father: {fileID: 330585546}
   m_LocalEulerAnglesHint: {x: 11.6, y: 54.79, z: 15.6}
---- !u!114 &74396054
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 74396049}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1a51177ce29fa294bb427235c4f6f59f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Camera_Rotate
-  rotateSpeed: 100
 --- !u!1 &82327518
 GameObject:
   m_ObjectHideFlags: 0
@@ -746,7 +732,9 @@ Transform:
   m_LocalPosition: {x: 0, y: 0.36399996, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 627004153}
+  - {fileID: 74396053}
   m_Father: {fileID: 1938334218}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &330585547
@@ -806,6 +794,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Camera_Rotate
   rotateSpeed: 100
+  recoilSpeed: 15
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
@@ -1045,29 +1034,11 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 542035264}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!1 &627004152 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 5966631cc39737b40980385fae35a122, type: 3}
-  m_PrefabInstance: {fileID: 1336548977}
-  m_PrefabAsset: {fileID: 0}
 --- !u!4 &627004153 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 5966631cc39737b40980385fae35a122, type: 3}
   m_PrefabInstance: {fileID: 1336548977}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &627004154
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 627004152}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1a51177ce29fa294bb427235c4f6f59f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Camera_Rotate
-  rotateSpeed: 100
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0
@@ -2090,7 +2061,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 1938334218}
+    m_TransformParent: {fileID: 330585546}
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: 5966631cc39737b40980385fae35a122, type: 3}
       propertyPath: m_LocalPosition.x
@@ -2098,7 +2069,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 5966631cc39737b40980385fae35a122, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.071
+      value: -0.29299998
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 5966631cc39737b40980385fae35a122, type: 3}
       propertyPath: m_LocalPosition.z
@@ -2110,15 +2081,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 5966631cc39737b40980385fae35a122, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 5966631cc39737b40980385fae35a122, type: 3}
       propertyPath: m_LocalRotation.y
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 5966631cc39737b40980385fae35a122, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 5966631cc39737b40980385fae35a122, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -2139,10 +2110,7 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 5966631cc39737b40980385fae35a122, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 627004154}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 5966631cc39737b40980385fae35a122, type: 3}
 --- !u!1 &1368056124
 GameObject:
@@ -2996,6 +2964,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerFire
   shootEffectPref: {fileID: 5824001525576459202, guid: 04fc0e8e238d27147b55a1920924ad5c, type: 3}
+  recoilVertical: 0.9
+  recoilHorizontal: 0.8
+  isAutoFire: 1
+  fireRate: 0.08
+  fireSounds:
+  - {fileID: 8300000, guid: 73cb5dffba36c7b49a9c9f5af345f345, type: 3}
 --- !u!114 &1938334213
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3132,8 +3106,6 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 330585546}
-  - {fileID: 627004153}
-  - {fileID: 74396053}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2021765441
