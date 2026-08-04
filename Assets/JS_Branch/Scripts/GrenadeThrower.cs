@@ -1,6 +1,7 @@
+using Photon.Pun;          // [추가] Photon 네트워크 기능 사용
 using UnityEngine;
 
-public class GrenadeThrower : MonoBehaviour
+public class GrenadeThrower : MonoBehaviourPun   // [변경] MonoBehaviour → MonoBehaviourPun
 {
     [Header("투척 오브젝트 연결")]
     public Transform throwPoint;       // 수류탄이 생성될 위치 (Main Camera의 자식)
@@ -12,6 +13,14 @@ public class GrenadeThrower : MonoBehaviour
 
     void Update()
     {
+        // [추가 ①]
+        // 자신의 플레이어만 G키 입력을 처리한다.
+        // 이 코드가 없으면 내 컴퓨터의 모든 플레이어가 수류탄을 던질 수 있다.
+        if (!photonView.IsMine)
+        {
+            return;
+        }
+
         // G키를 누르면 투척
         if (Input.GetKeyDown(KeyCode.G))
         {
@@ -22,17 +31,24 @@ public class GrenadeThrower : MonoBehaviour
     private void ThrowGrenade()
     {
         // 1. ThrowPoint 위치에 수류탄 생성
-        GameObject grenade = Instantiate(grenadePrefab, throwPoint.position, throwPoint.rotation);
+        GameObject grenade = Instantiate(
+            grenadePrefab,
+            throwPoint.position,
+            throwPoint.rotation);
 
         // 2. 생성된 수류탄의 물리 엔진(Rigidbody) 컴포넌트를 가져옴
         Rigidbody rb = grenade.GetComponent<Rigidbody>();
-        
+
         if (rb != null)
         {
-            // 3. 앞쪽으로 밀어내는 힘(throwForce)과 위로 띄우는 힘(upwardForce)을 합칩니다.
-            Vector3 forceToAdd = throwPoint.forward * throwForce + throwPoint.up * upwardForce;
-            
-            // 4. ForceMode.Impulse를 사용하여 순간적으로 강한 힘을 줍니다.
+            // 3. 앞쪽으로 밀어내는 힘(throwForce)과
+            // 위로 띄우는 힘(upwardForce)을 합칩니다.
+            Vector3 forceToAdd =
+                throwPoint.forward * throwForce +
+                throwPoint.up * upwardForce;
+
+            // 4. ForceMode.Impulse를 사용하여
+            // 순간적으로 강한 힘을 줍니다.
             rb.AddForce(forceToAdd, ForceMode.Impulse);
         }
     }

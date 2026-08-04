@@ -1,6 +1,7 @@
+using Photon.Pun;          // [추가] Photon 네트워크 기능 사용
 using UnityEngine;
 
-public class PlayerFire : MonoBehaviour
+public class PlayerFire : MonoBehaviourPun   // [변경] MonoBehaviour → MonoBehaviourPun
 {
     public GameObject shootEffectPref;
 
@@ -14,15 +15,23 @@ public class PlayerFire : MonoBehaviour
     private float nextFireTime = 0f;
 
     [Header("사운드")]
-    public AudioClip[] fireSounds;       // 여러 개의 총소리를 담을 배열 [변경됨]
+    public AudioClip[] fireSounds;       // 여러 개의 총소리를 담을 배열
     private AudioSource audioSource;
 
     private Camera_Rotate cameraRotate;
 
     void Start()
     {
+        // [추가 ①]
+        // 자신의 플레이어가 아니면 초기 설정을 하지 않는다.
+        if (!photonView.IsMine)
+        {
+            return;
+        }
+
         Cursor.visible = false;
         Cursor.lockState = CursorLockMode.Locked;
+
         cameraRotate = Camera.main.GetComponent<Camera_Rotate>();
 
         audioSource = GetComponent<AudioSource>();
@@ -34,8 +43,17 @@ public class PlayerFire : MonoBehaviour
 
     void Update()
     {
+        // [추가 ②]
+        // 자신의 플레이어만 발사 입력을 처리한다.
+        if (!photonView.IsMine)
+        {
+            return;
+        }
+
         // 연사 = 누르는 동안 / 단발 = 클릭할 때
-        bool fireInput = isAutoFire ? Input.GetMouseButton(0) : Input.GetMouseButtonDown(0);
+        bool fireInput = isAutoFire
+            ? Input.GetMouseButton(0)
+            : Input.GetMouseButtonDown(0);
 
         if (fireInput && Time.time >= nextFireTime)
         {
@@ -53,11 +71,10 @@ public class PlayerFire : MonoBehaviour
             int randomIndex = Random.Range(0, fireSounds.Length);
             AudioClip selectedSound = fireSounds[randomIndex];
 
-            // 3. (꿀팁) 소리의 높낮이(Pitch)를 쏠 때마다 아주 미세하게 랜덤으로 변경!
-            // 이렇게 하면 같은 소리가 나와도 다른 소리처럼 들려서 덜 지루합니다.
+            // 3. 소리의 Pitch를 약간 랜덤하게 변경
             audioSource.pitch = Random.Range(0.9f, 1.1f);
 
-            // 4. 뽑힌 사운드 재생
+            // 4. 선택된 총소리 재생
             audioSource.PlayOneShot(selectedSound);
         }
 
@@ -66,10 +83,16 @@ public class PlayerFire : MonoBehaviour
 
         if (Physics.Raycast(ray, out hit))
         {
-            GameObject shootEffect = Instantiate(shootEffectPref, hit.point + hit.normal * 0.01f, Quaternion.LookRotation(hit.normal));
+            // 총알 자국 이펙트 생성
+            GameObject shootEffect = Instantiate(
+                shootEffectPref,
+                hit.point + hit.normal * 0.01f,
+                Quaternion.LookRotation(hit.normal));
+
             shootEffect.transform.SetParent(hit.transform);
         }
 
+        // 반동 적용
         cameraRotate.AddRecoil(recoilVertical, recoilHorizontal);
     }
 }
