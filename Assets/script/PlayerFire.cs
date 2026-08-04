@@ -4,26 +4,29 @@ public class PlayerFire : MonoBehaviour
 {
     public GameObject shootEffectPref;
 
-    [Header("¹Ýµ¿")]
+    [Header("ï¿½Ýµï¿½")]
     public float recoilVertical = 5f;
     public float recoilHorizontal = 1f;
 
-    [Header("¿¬»ç")]
-    public bool isAutoFire = true;       // true = ¿¬»ç, false = ´Ü¹ß
-    public float fireRate = 0.1f;        // ¹ß»ç °£°Ý (ÃÊ) ³·À»¼ö·Ï ºü¸§
+    [Header("ï¿½ï¿½ï¿½ï¿½")]
+    public bool isAutoFire = true;       // true = ï¿½ï¿½ï¿½ï¿½, false = ï¿½Ü¹ï¿½
+    public float fireRate = 0.1f;        // ï¿½ß»ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½) ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     private float nextFireTime = 0f;
 
-    [Header("»ç¿îµå")]
-    public AudioClip[] fireSounds;       // ¿©·¯ °³ÀÇ ÃÑ¼Ò¸®¸¦ ´ãÀ» ¹è¿­ [º¯°æµÊ]
+    [Header("ï¿½ï¿½ï¿½ï¿½")]
+    public AudioClip[] fireSounds;       // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ñ¼Ò¸ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½è¿­ [ï¿½ï¿½ï¿½ï¿½ï¿½]
     private AudioSource audioSource;
 
     private Camera_Rotate cameraRotate;
+    private Ammo ammo;
 
     void Start()
     {
         Cursor.visible = false;
         Cursor.lockState = CursorLockMode.Locked;
         cameraRotate = Camera.main.GetComponent<Camera_Rotate>();
+
+        ammo = GetComponent<Ammo>(); // Åºï¿½ï¿½ ï¿½ï¿½Å©ï¿½ï¿½Æ®
 
         audioSource = GetComponent<AudioSource>();
         if (audioSource == null)
@@ -34,30 +37,37 @@ public class PlayerFire : MonoBehaviour
 
     void Update()
     {
-        // ¿¬»ç = ´©¸£´Â µ¿¾È / ´Ü¹ß = Å¬¸¯ÇÒ ¶§
+        // ï¿½ï¿½ï¿½ï¿½ = ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ / ï¿½Ü¹ï¿½ = Å¬ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½
         bool fireInput = isAutoFire ? Input.GetMouseButton(0) : Input.GetMouseButtonDown(0);
 
         if (fireInput && Time.time >= nextFireTime)
         {
-            nextFireTime = Time.time + fireRate;
-            Shoot();
+            bool canFire = (ammo == null)|| ammo.Use();
+
+            if(canFire){
+                nextFireTime = Time.time + fireRate;
+                Shoot(); 
+            }
+            else{
+                ammo.TryReload();
+            }
         }
     }
 
     void Shoot()
     {
-        // 1. µî·ÏµÈ ÃÑ¼Ò¸®°¡ 1°³ ÀÌ»óÀÏ ¶§¸¸ ½ÇÇà
+        // 1. ï¿½ï¿½Ïµï¿½ ï¿½Ñ¼Ò¸ï¿½ï¿½ï¿½ 1ï¿½ï¿½ ï¿½Ì»ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         if (fireSounds.Length > 0)
         {
-            // 2. 0¹øºÎÅÍ ¹è¿­ÀÇ ¸¶Áö¸· ¹øÈ£ Áß ÇÏ³ª¸¦ ·£´ýÀ¸·Î »ÌÀ½
+            // 2. 0ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½è¿­ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È£ ï¿½ï¿½ ï¿½Ï³ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
             int randomIndex = Random.Range(0, fireSounds.Length);
             AudioClip selectedSound = fireSounds[randomIndex];
 
-            // 3. (²ÜÆÁ) ¼Ò¸®ÀÇ ³ô³·ÀÌ(Pitch)¸¦ ½ò ¶§¸¶´Ù ¾ÆÁÖ ¹Ì¼¼ÇÏ°Ô ·£´ýÀ¸·Î º¯°æ!
-            // ÀÌ·¸°Ô ÇÏ¸é °°Àº ¼Ò¸®°¡ ³ª¿Íµµ ´Ù¸¥ ¼Ò¸®Ã³·³ µé·Á¼­ ´ú Áö·çÇÕ´Ï´Ù.
+            // 3. (ï¿½ï¿½ï¿½ï¿½) ï¿½Ò¸ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(Pitch)ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ì¼ï¿½ï¿½Ï°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½!
+            // ï¿½Ì·ï¿½ï¿½ï¿½ ï¿½Ï¸ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ò¸ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Íµï¿½ ï¿½Ù¸ï¿½ ï¿½Ò¸ï¿½Ã³ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
             audioSource.pitch = Random.Range(0.9f, 1.1f);
 
-            // 4. »ÌÈù »ç¿îµå Àç»ý
+            // 4. ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
             audioSource.PlayOneShot(selectedSound);
         }
 
