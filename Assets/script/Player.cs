@@ -21,7 +21,7 @@ public class Player : MonoBehaviour
     
     void Update()
     {
-        // WASD ÀÔ·ÂÀ» ¼ıÀÚ·Î ¹Ş¾Æ¼­ ÀúÀå
+        // WASD ì…ë ¥ì„ ìˆ«ìë¡œ ë°›ì•„ì„œ ì €ì¥
         float h = Input.GetAxis("Horizontal");
         float v = Input.GetAxis("Vertical");
 
@@ -29,15 +29,15 @@ public class Player : MonoBehaviour
 
         dir.Normalize();
 
-        // dir º¤ÅÍ´Â ¿ùµå ÁÂÇ¥°è ±âÁØÀÌ¹Ç·Î, ÇÃ·¹ÀÌ¾îÀÇ ¹æÇâ¿¡ ¸Â°Ô º¯È¯
+        // dir ë²¡í„°ëŠ” ì›”ë“œ ì¢Œí‘œê³„ ê¸°ì¤€ì´ë¯€ë¡œ, í”Œë ˆì´ì–´ì˜ ë°©í–¥ì— ë§ê²Œ ë³€í™˜
         dir = transform.TransformDirection(dir);
 
-        // xÃà¿¡´Â h, zÃà¿¡´Â v°ªÀ» ³Ö¾î¼­ º¤ÅÍ·Î ÀúÀå
+        // xì¶•ì—ëŠ” h, zì¶•ì—ëŠ” vê°’ì„ ë„£ì–´ì„œ ë²¡í„°ë¡œ ì €ì¥
         transform.position += dir * moveSpeed * Time.deltaTime;
 
         //rb.MovePosition(transform.position + dir * moveSpeed * Time.deltaTime);
 
-        // SpaceÅ°¸¦ ´©¸£¸é Á¡ÇÁ
+        // Spaceí‚¤ë¥¼ ëˆ„ë¥´ë©´ ì í”„
         if (Input.GetKeyDown(KeyCode.Space) && jumpcount < jumplimit)
         {
             rb.AddForce(Vector3.up * jumpPower, ForceMode.Impulse);
@@ -45,7 +45,7 @@ public class Player : MonoBehaviour
             jumpcount++;
         }
 
-        // ¸¶¿ì½ºÀÇ XÃà ¿òÁ÷ÀÓÀ» ¹Ş¾Æ¼­ ÀúÀå
+        // ë§ˆìš°ìŠ¤ì˜ Xì¶• ì›€ì§ì„ì„ ë°›ì•„ì„œ ì €ì¥
         float mouseMoveX = Input.GetAxis("Mouse X");
 
         transform.Rotate(Vector3.up * mouseMoveX * rotateSpeed * Time.deltaTime);
@@ -53,7 +53,7 @@ public class Player : MonoBehaviour
 
     private void OnCollisionEnter(Collision collision)
     {
-        // ¶¥¿¡ ´êÀ¸¸é Á¡ÇÁ È½¼ö ÃÊ±âÈ­
+        // ë•…ì— ë‹¿ìœ¼ë©´ ì í”„ íšŸìˆ˜ ì´ˆê¸°í™”
         if (collision.gameObject.CompareTag("Ground"))
         {
             jumpcount = 0;

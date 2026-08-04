@@ -2,31 +2,34 @@ using UnityEngine;
 
 public class PlayerFire : MonoBehaviour
 {
-    public GameObject shootEffectPref;
+    [Header("ÀüÅõ")]
+    public float damage = 20f;
+    public float range = 100f;
 
-    [Header("ï¿½Ýµï¿½")]
+    [Header("½Ã°¢ È¿°ú (VFX)")]
+    public GameObject muzzleFlashPrefab; // ÃÑ±¸ È­¿° ÇÁ¸®ÆÕ
+    public Transform muzzlePoint;        // ÃÑ±¸ À§Ä¡
+
+    [Header("¹Ýµ¿")]
     public float recoilVertical = 5f;
     public float recoilHorizontal = 1f;
 
-    [Header("ï¿½ï¿½ï¿½ï¿½")]
-    public bool isAutoFire = true;       // true = ï¿½ï¿½ï¿½ï¿½, false = ï¿½Ü¹ï¿½
-    public float fireRate = 0.1f;        // ï¿½ß»ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½) ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+    [Header("¿¬»ç")]
+    public bool isAutoFire = true;
+    public float fireRate = 0.1f;
     private float nextFireTime = 0f;
 
-    [Header("ï¿½ï¿½ï¿½ï¿½")]
-    public AudioClip[] fireSounds;       // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ñ¼Ò¸ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½è¿­ [ï¿½ï¿½ï¿½ï¿½ï¿½]
+    [Header("»ç¿îµå")]
+    public AudioClip[] fireSounds;
     private AudioSource audioSource;
 
     private Camera_Rotate cameraRotate;
-    private Ammo ammo;
 
     void Start()
     {
         Cursor.visible = false;
         Cursor.lockState = CursorLockMode.Locked;
         cameraRotate = Camera.main.GetComponent<Camera_Rotate>();
-
-        ammo = GetComponent<Ammo>(); // Åºï¿½ï¿½ ï¿½ï¿½Å©ï¿½ï¿½Æ®
 
         audioSource = GetComponent<AudioSource>();
         if (audioSource == null)
@@ -37,49 +40,62 @@ public class PlayerFire : MonoBehaviour
 
     void Update()
     {
-        // ï¿½ï¿½ï¿½ï¿½ = ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ / ï¿½Ü¹ï¿½ = Å¬ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½
         bool fireInput = isAutoFire ? Input.GetMouseButton(0) : Input.GetMouseButtonDown(0);
 
         if (fireInput && Time.time >= nextFireTime)
         {
-            bool canFire = (ammo == null)|| ammo.Use();
-
-            if(canFire){
-                nextFireTime = Time.time + fireRate;
-                Shoot(); 
-            }
-            else{
-                ammo.TryReload();
-            }
+            nextFireTime = Time.time + fireRate;
+            Shoot();
         }
     }
 
     void Shoot()
     {
-        // 1. ï¿½ï¿½Ïµï¿½ ï¿½Ñ¼Ò¸ï¿½ï¿½ï¿½ 1ï¿½ï¿½ ï¿½Ì»ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+        // --- 1. »ç¿îµå Àç»ý ---
         if (fireSounds.Length > 0)
         {
-            // 2. 0ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½è¿­ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È£ ï¿½ï¿½ ï¿½Ï³ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
             int randomIndex = Random.Range(0, fireSounds.Length);
-            AudioClip selectedSound = fireSounds[randomIndex];
-
-            // 3. (ï¿½ï¿½ï¿½ï¿½) ï¿½Ò¸ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(Pitch)ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ì¼ï¿½ï¿½Ï°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½!
-            // ï¿½Ì·ï¿½ï¿½ï¿½ ï¿½Ï¸ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ò¸ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Íµï¿½ ï¿½Ù¸ï¿½ ï¿½Ò¸ï¿½Ã³ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
             audioSource.pitch = Random.Range(0.9f, 1.1f);
-
-            // 4. ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
-            audioSource.PlayOneShot(selectedSound);
+            audioSource.PlayOneShot(fireSounds[randomIndex]);
         }
 
+        // --- 2. ÃÑ±¸ È­¿° »ý¼º ---
+        if (muzzleFlashPrefab != null && muzzlePoint != null)
+        {
+            // ÃÑ±¸ À§Ä¡¿¡ È­¿° »ý¼º
+            GameObject flash = Instantiate(muzzleFlashPrefab, muzzlePoint.position, muzzlePoint.rotation);
+
+            // ÃÑÀ» ¿òÁ÷¿©µµ È­¿°ÀÌ µû¶ó¿À°Ô ÇÏ·Á¸é ºÎ¸ð ¼³Á¤ (¼±ÅÃ»çÇ×)
+            flash.transform.SetParent(muzzlePoint);
+
+            // È­¿°Àº ¾ÆÁÖ Àá±ñ º¸ÀÌ°í »ç¶óÁ®¾ß ÇÔ (0.05ÃÊ ÃßÃµ)
+            Destroy(flash, 0.2f);
+        }
+
+        // --- 3. ·¹ÀÌÄ³½ºÆ® ¹ß»ç ---
         Ray ray = Camera.main.ViewportPointToRay(new Vector2(0.5f, 0.5f));
         RaycastHit hit;
 
-        if (Physics.Raycast(ray, out hit))
+        if (Physics.Raycast(ray, out hit, range))
         {
-            GameObject shootEffect = Instantiate(shootEffectPref, hit.point + hit.normal * 0.01f, Quaternion.LookRotation(hit.normal));
-            shootEffect.transform.SetParent(hit.transform);
+            // --- 4. µ¥¹ÌÁö Ã³¸® ---
+            IDamageable target = hit.collider.GetComponent<IDamageable>();
+            if (target != null)
+            {
+                target.TakeDamage(damage);
+            }
+
+            // --- 5. ÀÓÆÑÆ® ÀÌÆåÆ® Ã³¸® (SurfaceManager) ---
+            if (SurfaceManager.Instance != null)
+            {
+                SurfaceManager.Instance.PlayImpact(hit);
+            }
         }
 
-        cameraRotate.AddRecoil(recoilVertical, recoilHorizontal);
+        // --- 6. ¹Ýµ¿ Àû¿ë ---
+        if (cameraRotate != null)
+        {
+            cameraRotate.AddRecoil(recoilVertical, recoilHorizontal);
+        }
     }
 }
