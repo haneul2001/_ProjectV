@@ -3922,6 +3922,7 @@ GameObject:
   - component: {fileID: 1938334213}
   - component: {fileID: 1938334212}
   - component: {fileID: 1938334219}
+  - component: {fileID: 1938334220}
   m_Layer: 0
   m_Name: player
   m_TagString: Untagged
@@ -4098,8 +4099,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6830393b4fc493949ad040d7867beaea, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GrenadeThrower
+  throwKey: 101
   throwPoint: {fileID: 1485505093}
   grenadePrefab: {fileID: 2266720197317122482, guid: 8d711e9ef4e7f2449bf2505884321053, type: 3}
+  throwForce: 25
+  upwardForce: 2
+--- !u!114 &1938334220
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1938334211}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6830393b4fc493949ad040d7867beaea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GrenadeThrower
+  throwKey: 113
+  throwPoint: {fileID: 1485505093}
+  grenadePrefab: {fileID: 2266720197317122482, guid: 37cee698d8ecb68489609863fdfa881e, type: 3}
   throwForce: 25
   upwardForce: 2
 --- !u!1 &2021765441
