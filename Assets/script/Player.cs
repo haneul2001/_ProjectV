@@ -19,6 +19,24 @@ public class Player : MonoBehaviour
     private float mouseMoveX;
     private bool jumpRequested;
 
+    // [다리 스크립트 애니메이션용] Model 오브젝트(test_had.cs 등)는 이 Player와 다른
+    // 오브젝트에 붙어있으므로, 다리 스크립트가 여기서 값을 읽어갈 수 있게 공개해둡니다.
+    private bool isGrounded = true;
+
+    // 수평(XZ) 이동 속도. 다리 스윙 폭/속도를 계산할 때 사용.
+    // ※ rb.velocity 대신 실제 이동 입력(moveDir * moveSpeed)을 직접 사용합니다.
+    //    MovePosition으로 움직이는 Non-kinematic Rigidbody는 rb.velocity에
+    //    이동량이 정확히 반영되지 않는 경우가 있기 때문입니다.
+    // [다리 스크립트 방향 반응용] 정규화 전 원본 입력값 (전후/좌우 구분).
+    // 대각선(예: W+D)으로 움직일 때 다리가 방향에 맞게 자연스럽게 섞이도록
+    // LegAnimator가 이 값을 읽어갑니다.
+    public Vector2 MoveInput { get; private set; }
+
+    public float HorizontalSpeed => moveDir.magnitude * moveSpeed;
+
+    // 현재 땅에 붙어있는지 여부. 공중에 뜨면(점프 등) 다리를 중립 자세로 되돌리는 데 사용.
+    public bool IsGrounded => isGrounded;
+
     void Start()
     {
         rb = GetComponent<Rigidbody>();
@@ -41,6 +59,9 @@ public class Player : MonoBehaviour
 
         Vector3 dir = new Vector3(h, 0, v);
         dir.Normalize();
+
+        // 다리 애니메이션이 전후/좌우 비율을 알 수 있도록 정규화 전 원본 입력을 저장
+        MoveInput = new Vector2(h, v);
 
         // dir 벡터는 월드 좌표계 기준이므로, 플레이어의 방향에 맞게 변환
         dir = transform.TransformDirection(dir);
@@ -82,6 +103,16 @@ public class Player : MonoBehaviour
         if (collision.gameObject.CompareTag("Ground"))
         {
             jumpcount = 0;
+            isGrounded = true;
+        }
+    }
+
+    private void OnCollisionExit(Collision collision)
+    {
+        // 땅에서 떨어지면(점프/추락) 다리 애니메이션 스크립트가 알 수 있도록 false로 전환
+        if (collision.gameObject.CompareTag("Ground"))
+        {
+            isGrounded = false;
         }
     }
 }
