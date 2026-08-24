@@ -937,6 +937,7 @@ GameObject:
   - component: {fileID: 330585544}
   - component: {fileID: 330585547}
   - component: {fileID: 330585548}
+  - component: {fileID: 330585549}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -1078,6 +1079,23 @@ MonoBehaviour:
   rotateSpeed: 100
   tempX: 0
   recoilSpeed: 15
+--- !u!114 &330585549
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 330585543}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a29537600c515954c93d36c69d80d7ef, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerADS
+  adsPoint: {fileID: 351942627}
+  aimMouseButton: 1
+  adsSpeed: 8
+  adsFieldOfView: 30
+  crosshair: {fileID: 112269574}
 --- !u!1 &345533677
 GameObject:
   m_ObjectHideFlags: 0
@@ -1153,6 +1171,37 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 345533677}
   m_CullTransparentMesh: 1
+--- !u!1 &351942626
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 351942627}
+  m_Layer: 0
+  m_Name: lock camera
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &351942627
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 351942626}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0.00012302399, y: 0.000047288835, z: 0.00031915307, w: 0.99999994}
+  m_LocalPosition: {x: -0.001, y: 0.184, z: -0.424}
+  m_LocalScale: {x: 1.1764706, y: 1.1764712, z: 1.1764714}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 627004153}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &397517858
 GameObject:
   m_ObjectHideFlags: 0
@@ -1993,6 +2042,9 @@ MonoBehaviour:
   maxLookAngleY: 50
   offsetAngleX: 0
   offsetAngleY: 0
+  isReloading: 1
+  reloadShoulderEulerOffset: {x: -3, y: -30, z: 31.263}
+  reloadProgress: 0
   maxSwayY: 10
   swaySmoothSpeed: 15
 --- !u!114 &802062817
@@ -3188,6 +3240,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 5966631cc39737b40980385fae35a122, type: 3}
       insertIndex: -1
       addedObject: {fileID: 733623586}
+    - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 5966631cc39737b40980385fae35a122, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 351942627}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 5966631cc39737b40980385fae35a122, type: 3}
 --- !u!1 &1368056124
@@ -4513,6 +4568,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerFire
   damage: 20
   range: 100
+  magazineSize: 25
+  currentAmmo: 0
+  totalAmmo: 1000
+  reloadTime: 3
+  isReloading: 0
+  reloadMotionDuration: 2
+  headAnim: {fileID: 802062816}
   muzzleFlashPrefab: {fileID: 100000, guid: 8eaaa4f553116f44b8459bc24201c514, type: 3}
   muzzlePoint: {fileID: 733623586}
   recoilVertical: 0.9
@@ -4521,6 +4583,8 @@ MonoBehaviour:
   fireRate: 0.08
   fireSounds:
   - {fileID: 8300000, guid: 73cb5dffba36c7b49a9c9f5af345f345, type: 3}
+  reloadStartSound: {fileID: 8300000, guid: 688d6dbee17748841b47c275d2f1dd93, type: 3}
+  reloadEndSound: {fileID: 0}
 --- !u!114 &1938334213
 MonoBehaviour:
   m_ObjectHideFlags: 0
