@@ -103,8 +103,16 @@ public class test_had : MonoBehaviour
         //    크게 튀는 경우가 있습니다 (팔이 옆으로 확 벌어지는 잔상의 원인).
         //    실제 좌우 흔들림은 원래 작은 값이어야 하므로, 우선 좁은 범위로 눌러준 뒤
         //    부드럽게 따라가도록 감쇠시켜서 사용합니다.
-        float rawAngleY = Camera.main.transform.localEulerAngles.y;
-        if (rawAngleY > 180f) rawAngleY -= 360f; // -180 ~ 180 범위 보정
+        // [수정] 기존엔 .localEulerAngles.y로 오일러각을 직접 뽑아왔는데, 이 방식은
+        // Unity가 쿼터니언을 오일러(X,Y,Z)로 "다시 계산"하는 과정이라 여러 조합이
+        // 같은 회전을 나타낼 수 있어서(예: X=170,Y=180 ≒ X=-10,Y=0), 본이 여러 겹
+        // 중첩된 체인(Head->...->Camera)을 지날 때 특정 구간에서 표현이 갑자기
+        // 다른 조합으로 튈 수 있었습니다 (원래 주석에 적혀있던 문제).
+        // 본이 실제로 틀어진 정도를 반영하는 것 자체는 그대로 유지하되, 오일러각
+        // 대신 로컬 정면 벡터를 직접 구해서 Atan2로 각도를 계산합니다.
+        // 이 방식은 표현이 하나로 고정돼서(연속적) 튀는 문제가 없습니다.
+        Vector3 localForward = Camera.main.transform.localRotation * Vector3.forward;
+        float rawAngleY = Mathf.Atan2(localForward.x, localForward.z) * Mathf.Rad2Deg;
         rawAngleY = Mathf.Clamp(rawAngleY, -maxSwayY, maxSwayY);
         smoothedAngleY = Mathf.Lerp(smoothedAngleY, rawAngleY, Time.deltaTime * swaySmoothSpeed);
         float angleY = smoothedAngleY;

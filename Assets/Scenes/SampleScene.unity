@@ -1076,7 +1076,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a51177ce29fa294bb427235c4f6f59f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Camera_Rotate
-  rotateSpeed: 100
+  rotateSpeed: 50
   tempX: 0
   recoilSpeed: 15
 --- !u!114 &330585549
@@ -4600,7 +4600,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Player
   moveSpeed: 5
-  rotateSpeed: 100
+  rotateSpeed: 50
   jumpPower: 6
 --- !u!54 &1938334214
 Rigidbody:
