@@ -2,6 +2,9 @@ using UnityEngine;
 
 public class GrenadeThrower : MonoBehaviour
 {
+    [Header("투척 키 설정")]
+    public KeyCode throwKey = KeyCode.G;
+
     [Header("투척 오브젝트 연결")]
     public Transform throwPoint;       // 수류탄이 생성될 위치 (Main Camera의 자식)
     public GameObject grenadePrefab;   // 던질 수류탄 프리팹 (GrenadeObj)
@@ -13,7 +16,7 @@ public class GrenadeThrower : MonoBehaviour
     void Update()
     {
         // G키를 누르면 투척
-        if (Input.GetKeyDown(KeyCode.G))
+        if (Input.GetKeyDown(throwKey))
         {
             ThrowGrenade();
         }

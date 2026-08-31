@@ -14,7 +14,7 @@ public class AmmoUI : MonoBehaviour
     void Start()
     {
         text = GetComponent<TMP_Text>();
-        ammo = FindFirstObjectByType<Ammo>();
+        ammo = FindAnyObjectByType<Ammo>();
     }
 
     // Update is called once per frame

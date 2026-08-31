@@ -1,24 +1,56 @@
 using UnityEngine;
+using System.Collections;
 
 public class PlayerFire : MonoBehaviour
 {
-    public GameObject shootEffectPref;
+    [Header("ÀüÅõ")]
+    public float damage = 20f;
+    public float range = 100f;
 
-    [Header("ï¿½İµï¿½")]
+    [Header("Åº¾à / ÀçÀåÀü")]
+    [Tooltip("ÅºÃ¢ ÇÏ³ª¿¡ µé¾î°¡´Â ÃÖ´ë ÃÑ¾Ë ¼öÀÌÀÚ, °ÔÀÓ ½ÃÀÛ ½Ã ±âº»À¸·Î ÀåÀüµÇ´Â ÃÑ¾Ë ¼ö")]
+    public int magazineSize = 25;
+    [Tooltip("ÇöÀç ÅºÃ¢¿¡ ÀåÀüµÇ¾î ÀÖ´Â ÃÑ¾Ë ¼ö (Start¿¡¼­ magazineSize·Î Ã¤¿öÁü)")]
+    public int currentAmmo;
+    [Tooltip("ÅºÃ¢ ¹Û¿¡ ³²¾ÆÀÖ´Â ¿¹ºñ ÃÑ¾Ë ¼ö. ÀÎ½ºÆåÅÍ¿¡¼­ ÀÚÀ¯·Ó°Ô ¼³Á¤ °¡´É")]
+    public int totalAmmo = 250;
+    public float reloadTime = 2f;         // ÀçÀåÀü ÀüÃ¼ ½Ã°£ (Åº¾àÀÌ Ã¤¿öÁö°í ´Ù½Ã ¹ß»ç °¡´ÉÇØÁö±â±îÁö)
+    public bool isReloading = false;      // ÀçÀåÀü ÁßÀÎÁö ¿©ºÎ (¿ÜºÎ¿¡¼­ ÀĞ±â¿ëÀ¸·Î public)
+
+    [Tooltip("¿ŞÂÊ ¾î±ú ½ºÀ® ¸ğ¼Ç ÀÚÃ¼°¡ ³¡³ª´Â µ¥ °É¸®´Â ½Ã°£. reloadTimeº¸´Ù Âª°Ô ÀâÀ¸¸é " +
+             "ÆÈÀº ºü¸£°Ô ¿òÁ÷ÀÌ°í ³²Àº ½Ã°£Àº ±×³É ´ë±â(ÀçÀåÀü ¸¶¹«¸®)ÇÏ´Â °ÍÃ³·³ º¸ÀÔ´Ï´Ù.")]
+    public float reloadMotionDuration = 0.5f;
+
+    [Header("ÀçÀåÀü - ¿ŞÂÊ ¾î±ú ¿¬µ¿")]
+    [Tooltip("¿ŞÂÊ ¾î±ú(LeftShoulder) º»À» °®°í ÀÖ´Â test_had ÄÄÆ÷³ÍÆ®¸¦ ¿¬°áÇÏ¼¼¿ä. " +
+             "ÀçÀåÀü Áß¿¡´Â test_had°¡ Æò¼Ò ÇÏ´ø Á¶ÁØ ¿¬µ¿ ´ë½Å, ÀÌ ½ºÅ©¸³Æ®°¡ ³Ñ°ÜÁÖ´Â " +
+             "ÁøÇàµµ(0~1)¿¡ ¸ÂÃç ¿ŞÂÊ ¾î±ú¸¸ º°µµ·Î ¿òÁ÷ÀÔ´Ï´Ù.")]
+    public test_had headAnim;
+
+    [Header("½Ã°¢ È¿°ú (VFX)")]
+    public GameObject muzzleFlashPrefab; // ÃÑ±¸ È­¿° ÇÁ¸®ÆÕ
+    public Transform muzzlePoint;        // ÃÑ±¸ À§Ä¡
+
+    [Header("¹İµ¿")]
     public float recoilVertical = 5f;
     public float recoilHorizontal = 1f;
 
-    [Header("ï¿½ï¿½ï¿½ï¿½")]
-    public bool isAutoFire = true;       // true = ï¿½ï¿½ï¿½ï¿½, false = ï¿½Ü¹ï¿½
-    public float fireRate = 0.1f;        // ï¿½ß»ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½) ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+    [Header("¿¬»ç")]
+    public bool isAutoFire = true;
+    public float fireRate = 0.1f;
     private float nextFireTime = 0f;
 
-    [Header("ï¿½ï¿½ï¿½ï¿½")]
-    public AudioClip[] fireSounds;       // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ñ¼Ò¸ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½è¿­ [ï¿½ï¿½ï¿½ï¿½ï¿½]
+    [Header("»ç¿îµå")]
+    public AudioClip[] fireSounds;
     private AudioSource audioSource;
 
+    [Header("ÀçÀåÀü »ç¿îµå")]
+    [Tooltip("ÀçÀåÀü ½ÃÀÛÇÒ ¶§ (ÅºÃ¢ »©´Â ¼Ò¸®)")]
+    public AudioClip reloadStartSound;
+    [Tooltip("ÀçÀåÀü ³¡³¯ ¶§ (»õ ÅºÃ¢ ³¢¿ì´Â ¼Ò¸®, ¼±ÅÃ)")]
+    public AudioClip reloadEndSound;
+
     private Camera_Rotate cameraRotate;
-    private Ammo ammo;
 
     void Start()
     {
@@ -26,60 +58,174 @@ public class PlayerFire : MonoBehaviour
         Cursor.lockState = CursorLockMode.Locked;
         cameraRotate = Camera.main.GetComponent<Camera_Rotate>();
 
-        ammo = GetComponent<Ammo>(); // Åºï¿½ï¿½ ï¿½ï¿½Å©ï¿½ï¿½Æ®
-
         audioSource = GetComponent<AudioSource>();
         if (audioSource == null)
         {
             audioSource = gameObject.AddComponent<AudioSource>();
         }
+
+        currentAmmo = magazineSize;
+
+        if (headAnim == null)
+        {
+            Debug.LogWarning("[PlayerFire] Head AnimÀÌ ¿¬°áµÇÁö ¾Ê¾Ò½À´Ï´Ù! " +
+                              "ÀÎ½ºÆåÅÍ¿¡¼­ test_had°¡ ºÙÀº Ä³¸¯ÅÍ ¸ğµ¨ ¿ÀºêÁ§Æ®¸¦ Head Anim ÇÊµå¿¡ µå·¡±×ÇÏ¼¼¿ä. " +
+                              "¿¬°á ¾È ÇÏ¸é ÀçÀåÀü ½Ã ¿ŞÂÊ ¾î±ú ¾Ö´Ï¸ŞÀÌ¼ÇÀÌ ÀÛµ¿ÇÏÁö ¾Ê½À´Ï´Ù.");
+        }
     }
 
     void Update()
     {
-        // ï¿½ï¿½ï¿½ï¿½ = ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ / ï¿½Ü¹ï¿½ = Å¬ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½
+        // RÅ°·Î ÀçÀåÀü ¿äÃ». ÀÌ¹Ì ÀçÀåÀü ÁßÀÌ°Å³ª ÅºÃ¢ÀÌ ²Ë Â÷ÀÖ°Å³ª ¿¹ºñ Åº¾àÀÌ ¾øÀ¸¸é ¹«½Ã.
+        if (Input.GetKeyDown(KeyCode.R) && !isReloading && currentAmmo < magazineSize && totalAmmo > 0)
+        {
+            StartCoroutine(Reload());
+        }
+
+        // ÀçÀåÀü Áß¿¡´Â ¹ß»ç ÀÔ·ÂÀ» ¾Æ¿¹ ¹ŞÁö ¾ÊÀ½
+        if (isReloading) return;
+
         bool fireInput = isAutoFire ? Input.GetMouseButton(0) : Input.GetMouseButtonDown(0);
 
         if (fireInput && Time.time >= nextFireTime)
         {
-            bool canFire = (ammo == null)|| ammo.Use();
+            // Åº¾àÀÌ ¾øÀ¸¸é ¹ß»ç ´ë½Å ÀÚµ¿À¸·Î ÀçÀåÀü (¿¹ºñ Åº¾àÀÌ ÀÖÀ» ¶§¸¸)
+            if (currentAmmo <= 0)
+            {
+                if (totalAmmo > 0)
+                {
+                    StartCoroutine(Reload());
+                }
+                else
+                {
+                    Debug.Log("[Ammo] ¿¹ºñ Åº¾àµµ ¾ø½À´Ï´Ù. ÀçÀåÀü ºÒ°¡.");
+                }
+                return;
+            }
 
-            if(canFire){
-                nextFireTime = Time.time + fireRate;
-                Shoot(); 
-            }
-            else{
-                ammo.TryReload();
-            }
+            nextFireTime = Time.time + fireRate;
+            Shoot();
         }
+    }
+
+    private IEnumerator Reload()
+    {
+        isReloading = true;
+
+        Debug.Log($"[Reload] ÀçÀåÀü ½ÃÀÛ - ÀåÀüÅº: {currentAmmo}/{magazineSize}, ¿¹ºñÅº: {totalAmmo}");
+
+        // test_had¿¡°Ô "ÀçÀåÀü ÁßÀÌ´Ï ¿ŞÂÊ ¾î±ú´Â Æò¼Ò Á¶ÁØ ¿¬µ¿ ´ë½Å ³»°¡ ÁÖ´Â ÁøÇàµµ·Î ¿òÁ÷¿©¶ó" ¾Ë¸²
+        if (headAnim != null)
+        {
+            headAnim.isReloading = true;
+        }
+
+        // ÀçÀåÀü ½ÃÀÛ »ç¿îµå (ÅºÃ¢ »©´Â ¼Ò¸®)
+        if (reloadStartSound != null && audioSource != null)
+        {
+            audioSource.pitch = 1f;
+            audioSource.PlayOneShot(reloadStartSound);
+        }
+
+        // ¸Å ÇÁ·¹ÀÓ ÁøÇàµµ(0~1)¸¦ °è»êÇØ¼­ ³Ñ°ÜÁÜ. Sin °î¼±ÀÌ¶ó 0¿¡¼­ ½ÃÀÛÇØ¼­
+        // reloadMotionDurationÀÇ Àı¹İ ÁöÁ¡¿¡¼­ 1(ÃÖ´ë·Î ¿òÁ÷ÀÎ »óÅÂ)ÀÌ µÆ´Ù°¡ ´Ù½Ã 0À¸·Î µ¹¾Æ¿É´Ï´Ù.
+        // reloadMotionDurationÀÌ reloadTimeº¸´Ù ÂªÀ¸¸é, ¸ğ¼ÇÀÌ ³¡³­ µÚ ³²Àº ½Ã°£Àº
+        // reloadProgress°¡ 0¿¡ °íÁ¤µÈ Ã¤·Î ±×³É ÀçÀåÀü ´ë±â ½Ã°£Ã³·³ Èê·¯°©´Ï´Ù.
+        float elapsed = 0f;
+        bool endSoundPlayed = false;
+        while (elapsed < reloadTime)
+        {
+            elapsed += Time.deltaTime;
+            float motionT = Mathf.Clamp01(elapsed / reloadMotionDuration);
+            float progress = Mathf.Sin(motionT * Mathf.PI); // 0 -> 1 -> 0, reloadMotionDuration ¾È¿¡¼­ ¿Ï·áµÊ
+
+            if (headAnim != null)
+            {
+                headAnim.reloadProgress = progress;
+            }
+
+            // ¸ğ¼ÇÀÌ Àı¹İ ÁöÁ¡(ÆÈÀÌ °¡Àå ¸¹ÀÌ ¿òÁ÷ÀÎ ¼ø°£)À» Áö³ª¸é »õ ÅºÃ¢ ³¢¿ì´Â ¼Ò¸® Àç»ı
+            if (!endSoundPlayed && motionT >= 0.5f)
+            {
+                endSoundPlayed = true;
+                if (reloadEndSound != null && audioSource != null)
+                {
+                    audioSource.pitch = 1f;
+                    audioSource.PlayOneShot(reloadEndSound);
+                }
+            }
+
+            yield return null;
+        }
+
+        if (headAnim != null)
+        {
+            headAnim.reloadProgress = 0f;
+            headAnim.isReloading = false;
+        }
+
+        // ÅºÃ¢ ºó ºÎºĞ¸¸Å­ ¿¹ºñ Åº¾à¿¡¼­ Ã¤¿ö¿È (¿¹ºñ Åº¾àÀÌ ¸ğÀÚ¶ó¸é ÀÖ´Â ¸¸Å­¸¸)
+        int amountNeeded = magazineSize - currentAmmo;
+        int amountToLoad = Mathf.Min(amountNeeded, totalAmmo);
+
+        currentAmmo += amountToLoad;
+        totalAmmo -= amountToLoad;
+
+        isReloading = false;
+
+        Debug.Log($"[Reload] ÀçÀåÀü ¿Ï·á - ÀåÀüÅº: {currentAmmo}/{magazineSize}, ¿¹ºñÅº: {totalAmmo}");
     }
 
     void Shoot()
     {
-        // 1. ï¿½ï¿½Ïµï¿½ ï¿½Ñ¼Ò¸ï¿½ï¿½ï¿½ 1ï¿½ï¿½ ï¿½Ì»ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+        // --- 0. Åº¾à ¼Ò¸ğ ---
+        currentAmmo--;
+
+        // --- 1. »ç¿îµå Àç»ı ---
         if (fireSounds.Length > 0)
         {
-            // 2. 0ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½è¿­ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È£ ï¿½ï¿½ ï¿½Ï³ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
             int randomIndex = Random.Range(0, fireSounds.Length);
-            AudioClip selectedSound = fireSounds[randomIndex];
-
-            // 3. (ï¿½ï¿½ï¿½ï¿½) ï¿½Ò¸ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(Pitch)ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ì¼ï¿½ï¿½Ï°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½!
-            // ï¿½Ì·ï¿½ï¿½ï¿½ ï¿½Ï¸ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ò¸ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Íµï¿½ ï¿½Ù¸ï¿½ ï¿½Ò¸ï¿½Ã³ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
             audioSource.pitch = Random.Range(0.9f, 1.1f);
-
-            // 4. ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
-            audioSource.PlayOneShot(selectedSound);
+            audioSource.PlayOneShot(fireSounds[randomIndex]);
         }
 
+        // --- 2. ÃÑ±¸ È­¿° »ı¼º ---
+        if (muzzleFlashPrefab != null && muzzlePoint != null)
+        {
+            // ÃÑ±¸ À§Ä¡¿¡ È­¿° »ı¼º
+            GameObject flash = Instantiate(muzzleFlashPrefab, muzzlePoint.position, muzzlePoint.rotation);
+
+            // ÃÑÀ» ¿òÁ÷¿©µµ È­¿°ÀÌ µû¶ó¿À°Ô ÇÏ·Á¸é ºÎ¸ğ ¼³Á¤ (¼±ÅÃ»çÇ×)
+            flash.transform.SetParent(muzzlePoint);
+
+            // È­¿°Àº ¾ÆÁÖ Àá±ñ º¸ÀÌ°í »ç¶óÁ®¾ß ÇÔ (0.05ÃÊ ÃßÃµ)
+            Destroy(flash, 0.2f);
+        }
+
+        // --- 3. ·¹ÀÌÄ³½ºÆ® ¹ß»ç ---
         Ray ray = Camera.main.ViewportPointToRay(new Vector2(0.5f, 0.5f));
         RaycastHit hit;
 
-        if (Physics.Raycast(ray, out hit))
+        if (Physics.Raycast(ray, out hit, range))
         {
-            GameObject shootEffect = Instantiate(shootEffectPref, hit.point + hit.normal * 0.01f, Quaternion.LookRotation(hit.normal));
-            shootEffect.transform.SetParent(hit.transform);
+            // --- 4. µ¥¹ÌÁö Ã³¸® ---
+            IDamageable target = hit.collider.GetComponent<IDamageable>();
+            if (target != null)
+            {
+                target.TakeDamage(damage);
+            }
+
+            // --- 5. ÀÓÆÑÆ® ÀÌÆåÆ® Ã³¸® (SurfaceManager) ---
+            if (SurfaceManager.Instance != null)
+            {
+                SurfaceManager.Instance.PlayImpact(hit);
+            }
         }
 
-        cameraRotate.AddRecoil(recoilVertical, recoilHorizontal);
+        // --- 6. ¹İµ¿ Àû¿ë ---
+        if (cameraRotate != null)
+        {
+            cameraRotate.AddRecoil(recoilVertical, recoilHorizontal);
+        }
     }
 }
