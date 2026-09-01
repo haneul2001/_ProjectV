@@ -4156,8 +4156,12 @@ PrefabInstance:
       value: -48.675
       objectReference: {fileID: 0}
     - target: {fileID: 5866666021909216657, guid: c10f07f8a6cdf3c46baa65462c1becca, type: 3}
-      propertyPath: m_AnimatePhysics
+      propertyPath: m_UpdateMode
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5866666021909216657, guid: c10f07f8a6cdf3c46baa65462c1becca, type: 3}
+      propertyPath: m_AnimatePhysics
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8111781155169087978, guid: c10f07f8a6cdf3c46baa65462c1becca, type: 3}
       propertyPath: m_LightProbeUsage
@@ -4626,7 +4630,7 @@ Rigidbody:
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 0
-  m_Interpolate: 0
+  m_Interpolate: 1
   m_Constraints: 112
   m_CollisionDetection: 0
 --- !u!136 &1938334215
