@@ -60,7 +60,7 @@ public class TitleMenu : MonoBehaviour
             yield break;
         }
 
-        if (Application.CanStreamedLevelBeLoaded(matchingSceneName))
+        if (SceneLookup.IsInBuild(matchingSceneName))
         {
             SceneManager.LoadScene(matchingSceneName);
         }

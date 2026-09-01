@@ -54,7 +54,7 @@ public static class TitleSceneBuilder
 
         TitleMenu menu = canvasGo.AddComponent<TitleMenu>();
         menu.fadeGroup = canvasGo.GetComponent<CanvasGroup>();
-        menu.matchingSceneName = "SampleScene";
+        menu.matchingSceneName = "Scene1";
 
         Transform uiRoot = canvasGo.transform;
 

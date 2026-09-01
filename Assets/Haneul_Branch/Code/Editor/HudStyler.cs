@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using TMPro;
 using UnityEditor;
+using UnityEditor.Events;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -12,8 +13,6 @@ using K = HaneulUiKit;
 // 메뉴: Tools/Haneul/Style HUD
 public static class HudStyler
 {
-    const string ScenePath = "Assets/Haneul_Branch/haneul_scene.unity";
-
     // 화면 가장자리 여백 / 판때기 안쪽 여백
     const float Margin = 48f;
     const float Pad = 16f;
@@ -23,6 +22,8 @@ public static class HudStyler
     const float ScoreX = 190f;   // 점수 숫자의 좌우 위치
     const float TimeHalf = 90f;  // 가운데 타이머 칸의 절반 너비
 
+    const float HandleWidth = 18f;  // 슬라이더 손잡이 폭
+
     [MenuItem("Tools/Haneul/Style HUD")]
     public static void Style()
     {
@@ -30,10 +31,8 @@ public static class HudStyler
 
         K.EnsureAssets();
 
+        // 지금 열려 있는 씬에 적용한다
         Scene scene = SceneManager.GetActiveScene();
-        if (scene.path != ScenePath)
-            scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
-
         GameObject canvasGo = GameObject.Find("Canvas");
         if (canvasGo == null)
         {
@@ -52,9 +51,14 @@ public static class HudStyler
         StylePauseMenu(Find(canvas, "ToggleGroup"));
         StyleFade(Find(canvas, "ScreenFadeGorup"));
 
+        WireAmmo(canvas);
+        WireHealth(canvas);
+        WirePauseMenu(canvasGo, canvas.Find("ToggleGroup"));
+        WireToast(canvas.Find("ToastGroup"));
+
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
-        Debug.Log("[HudStyler] HUD 정리 완료");
+        Debug.Log("[HudStyler] HUD 정리 완료 — " + scene.name);
     }
 
     // 베이지 판때기 + 테두리. HUD 글자가 3D 배경 위에서도 읽히도록 깔아준다.
@@ -372,6 +376,122 @@ public static class HudStyler
         PauseButton(panel, "ReSume", "RESUME", 60f);
         PauseButton(panel, "Option", "OPTIONS", -36f);
         PauseButton(panel, "Exit", "EXIT", -132f);
+
+        StyleOptionPanel(group);
+    }
+
+    // ── 옵션 화면 ─────────────────────────────────────────────
+    static void StyleOptionPanel(Transform group)
+    {
+        GameObject go = K.Child(group, "OptionPannel");
+        Transform panel = go.transform;
+
+        K.Img(go, K.WithA(K.Bg, 0.98f), K.White);
+        K.Rect(panel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(520f, 340f));
+
+        K.Frame(panel, "Frame", K.WithA(K.Fg, 0.22f));
+        K.Bar(panel, "TopBar", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
+            Vector2.zero, new Vector2(0f, 4f), K.Accent);
+        K.Bar(panel, "BottomBand", new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f),
+            Vector2.zero, new Vector2(0f, 3f), K.Sage);
+
+        TMP_Text title = K.Text(panel, "Title", "OPTIONS", 34f, K.Fg);
+        title.fontStyle = FontStyles.Bold;
+        title.characterSpacing = 14f;
+        title.alignment = TextAlignmentOptions.Center;
+        K.Rect(title, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -40f), new Vector2(420f, 46f));
+
+        TMP_Text label = K.Text(panel, "MasterLabel", "MASTER VOLUME", 20f, K.Muted);
+        label.characterSpacing = 12f;
+        label.alignment = TextAlignmentOptions.MidlineLeft;
+        K.Rect(label, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 54f), new Vector2(420f, 24f));
+
+        BuildSlider(panel, "MasterSlider", new Vector2(-36f, 4f), new Vector2(348f, 24f));
+
+        TMP_Text value = K.Text(panel, "MasterValue", "100%", 22f, K.Fg);
+        value.fontStyle = FontStyles.Bold;
+        value.alignment = TextAlignmentOptions.MidlineRight;
+        K.Rect(value, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(174f, 4f), new Vector2(80f, 26f));
+
+        GameObject back = K.Child(panel, "Back");
+        K.Rect(back.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+            new Vector2(0f, -96f), new Vector2(420f, 64f));
+        K.MenuButton(back, "BACK", 24f);
+
+        go.SetActive(false);
+    }
+
+    // uGUI Slider 는 Fill / Handle 을 정해진 구조로 만들어줘야 동작한다.
+    static Slider BuildSlider(Transform parent, string name, Vector2 pos, Vector2 size)
+    {
+        GameObject go = K.Child(parent, name);
+        K.Rect(go.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), pos, size);
+
+        // 줄 전체에서 클릭/드래그를 받도록 투명한 판을 깐다.
+        // 이게 없으면 손잡이(18px) 위를 정확히 집었을 때만 움직인다.
+        Image hitArea = K.Img(go, new Color(0f, 0f, 0f, 0f), K.White);
+        hitArea.raycastTarget = true;
+
+        Image track = K.Img(K.Child(go.transform, "Background"), K.WithA(K.Fg, 0.14f), K.White);
+        track.raycastTarget = true;
+        RectTransform trackRt = track.rectTransform;
+        trackRt.anchorMin = new Vector2(0f, 0.5f);
+        trackRt.anchorMax = new Vector2(1f, 0.5f);
+        trackRt.pivot = new Vector2(0.5f, 0.5f);
+        trackRt.anchoredPosition = Vector2.zero;
+        trackRt.sizeDelta = new Vector2(0f, 8f);
+
+        GameObject fillArea = K.Child(go.transform, "Fill Area");
+        RectTransform fillAreaRt = (RectTransform)fillArea.transform;
+        fillAreaRt.anchorMin = new Vector2(0f, 0.5f);
+        fillAreaRt.anchorMax = new Vector2(1f, 0.5f);
+        fillAreaRt.pivot = new Vector2(0.5f, 0.5f);
+        fillAreaRt.anchoredPosition = Vector2.zero;
+        fillAreaRt.sizeDelta = new Vector2(-HandleWidth, 8f);
+
+        Image fill = K.Img(K.Child(fillArea.transform, "Fill"), K.Sage, K.White);
+        RectTransform fillRt = fill.rectTransform;
+        fillRt.anchorMin = Vector2.zero;
+        fillRt.anchorMax = Vector2.one;
+        fillRt.offsetMin = Vector2.zero;
+        fillRt.offsetMax = Vector2.zero;
+
+        GameObject slideArea = K.Child(go.transform, "Handle Slide Area");
+        RectTransform slideRt = (RectTransform)slideArea.transform;
+        slideRt.anchorMin = Vector2.zero;
+        slideRt.anchorMax = Vector2.one;
+        slideRt.offsetMin = Vector2.zero;
+        slideRt.offsetMax = Vector2.zero;
+        slideRt.sizeDelta = new Vector2(-HandleWidth, 0f);
+
+        Image handle = K.Img(K.Child(slideArea.transform, "Handle"), K.Fg, K.White);
+        handle.raycastTarget = true;
+        RectTransform handleRt = handle.rectTransform;
+        handleRt.anchorMin = new Vector2(0f, 0f);
+        handleRt.anchorMax = new Vector2(0f, 1f);
+        handleRt.pivot = new Vector2(0.5f, 0.5f);
+        handleRt.anchoredPosition = Vector2.zero;
+        handleRt.sizeDelta = new Vector2(HandleWidth, -2f);
+
+        Slider slider = go.GetComponent<Slider>();
+        if (slider == null) slider = go.AddComponent<Slider>();
+        slider.direction = Slider.Direction.LeftToRight;
+        slider.minValue = 0f;
+        slider.maxValue = 1f;
+        slider.wholeNumbers = false;
+        slider.fillRect = fillRt;
+        slider.handleRect = handleRt;
+        slider.targetGraphic = handle;
+        slider.transition = Selectable.Transition.ColorTint;
+
+        ColorBlock colors = slider.colors;
+        colors.normalColor = Color.white;
+        colors.highlightedColor = new Color(0.85f, 0.85f, 0.85f, 1f);
+        colors.pressedColor = new Color(0.7f, 0.7f, 0.7f, 1f);
+        colors.selectedColor = Color.white;
+        slider.colors = colors;
+
+        return slider;
     }
 
     static void PauseButton(Transform panel, string name, string labelText, float y)
@@ -388,6 +508,157 @@ public static class HudStyler
         if (fade == null) return;
         K.Img(fade.gameObject, K.Veil, K.White);
         K.Stretch(fade);
+    }
+
+    // ── 스크립트 연동 ─────────────────────────────────────────
+
+    // 탄창 숫자를 PlayerFire 에 연결한다 (씬에 없으면 런타임에 알아서 찾는다)
+    static void WireAmmo(Transform canvas)
+    {
+        PlayerFire fire = Object.FindAnyObjectByType<PlayerFire>();
+        if (fire == null)
+        {
+            Debug.LogWarning("[HudStyler] 씬에 PlayerFire 가 없어 탄창 UI 는 런타임에 연결됩니다.");
+            return;
+        }
+
+        AmmoBind(canvas, "DefaultGroup/AmmoBox/TextBox/CurrentAmmo", AmmoUI.DisplayType.Current, fire);
+        AmmoBind(canvas, "DefaultGroup/AmmoBox/TextBox/TotalAmmo", AmmoUI.DisplayType.Reserve, fire);
+    }
+
+    static void AmmoBind(Transform canvas, string path, AmmoUI.DisplayType type, PlayerFire fire)
+    {
+        Transform t = canvas.Find(path);
+        if (t == null) return;
+
+        AmmoUI ui = t.GetComponent<AmmoUI>();
+        if (ui == null) ui = t.gameObject.AddComponent<AmmoUI>();
+        ui.displayType = type;
+        ui.source = fire;
+        EditorUtility.SetDirty(ui);
+    }
+
+    // 체력 숫자 / 게이지를 PlayerHealth 에 연결한다
+    static void WireHealth(Transform canvas)
+    {
+        Transform hp = canvas.Find("DefaultGroup/HpBox");
+        if (hp == null) return;
+
+        HealthUI ui = hp.GetComponent<HealthUI>();
+        if (ui == null) ui = hp.gameObject.AddComponent<HealthUI>();
+
+        Transform value = hp.Find("HpValue");
+        Transform fill = hp.Find("BG/Fill");
+        ui.valueText = value != null ? value.GetComponent<TMP_Text>() : null;
+        ui.fill = fill != null ? fill.GetComponent<Image>() : null;
+        ui.normalColor = K.Sage;
+        ui.lowColor = K.Accent;
+
+        PlayerHealth health = Object.FindAnyObjectByType<PlayerHealth>();
+        if (health == null)
+        {
+            // 총알은 IDamageable 을 찾으므로 콜라이더가 있는 플레이어 본체에 붙여야 한다
+            PlayerFire fire = Object.FindAnyObjectByType<PlayerFire>();
+            if (fire != null)
+            {
+                health = fire.gameObject.AddComponent<PlayerHealth>();
+                Debug.Log("[HudStyler] " + fire.gameObject.name + " 에 PlayerHealth 를 새로 붙였습니다.");
+            }
+        }
+        ui.source = health;
+        if (health == null)
+            Debug.LogWarning("[HudStyler] 플레이어를 찾지 못해 체력 UI 는 런타임에 연결됩니다.");
+
+        EditorUtility.SetDirty(ui);
+    }
+
+    // ESC 토글 + 메뉴 버튼 연결
+    static void WirePauseMenu(GameObject canvasGo, Transform group)
+    {
+        if (group == null) return;
+
+        PauseMenu menu = canvasGo.GetComponent<PauseMenu>();
+        if (menu == null) menu = canvasGo.AddComponent<PauseMenu>();
+
+        menu.menuGroup = group.gameObject;
+        menu.titleSceneName = "TITLE";
+
+        Transform panel = group.Find("MenuPannel");
+        if (panel == null) return;
+
+        menu.mainPanel = panel.gameObject;
+        menu.resumeButton = Bind(panel, "ReSume", new UnityEngine.Events.UnityAction(menu.Resume));
+        menu.optionsButton = Bind(panel, "Option", new UnityEngine.Events.UnityAction(menu.OpenOptions));
+        menu.exitButton = Bind(panel, "Exit", new UnityEngine.Events.UnityAction(menu.ExitToTitle));
+
+        menu.options = WireOptions(canvasGo, group, panel.gameObject);
+
+        EditorUtility.SetDirty(menu);
+    }
+
+    // 옵션 화면. 컨트롤러는 꺼져 있는 패널이 아니라 Canvas 에 둔다.
+    static OptionsMenu WireOptions(GameObject canvasGo, Transform group, GameObject returnTo)
+    {
+        Transform panel = group.Find("OptionPannel");
+        if (panel == null) return null;
+
+        OptionsMenu options = canvasGo.GetComponent<OptionsMenu>();
+        if (options == null) options = canvasGo.AddComponent<OptionsMenu>();
+
+        options.panel = panel.gameObject;
+        options.returnTo = returnTo;
+
+        Transform slider = panel.Find("MasterSlider");
+        Transform value = panel.Find("MasterValue");
+        options.masterSlider = slider != null ? slider.GetComponent<Slider>() : null;
+        options.masterValue = value != null ? value.GetComponent<TMP_Text>() : null;
+        options.backButton = Bind(panel, "Back", new UnityEngine.Events.UnityAction(options.Close));
+
+        EditorUtility.SetDirty(options);
+        return options;
+    }
+
+    static Button Bind(Transform panel, string name, UnityEngine.Events.UnityAction call)
+    {
+        Transform t = panel.Find(name);
+        if (t == null) return null;
+
+        Button button = t.GetComponent<Button>();
+        if (button == null) return null;
+
+        // 도구를 다시 돌려도 같은 항목이 쌓이지 않도록 비우고 다시 건다
+        for (int i = button.onClick.GetPersistentEventCount() - 1; i >= 0; i--)
+            UnityEventTools.RemovePersistentListener(button.onClick, i);
+        UnityEventTools.AddPersistentListener(button.onClick, call);
+
+        EditorUtility.SetDirty(button);
+        return button;
+    }
+
+    // 위에서 내려오는 토스트.
+    // 컨트롤러는 ToastGroup 에 두고 MessageBox 만 움직인다.
+    static void WireToast(Transform group)
+    {
+        if (group == null) return;
+
+        Transform box = group.Find("MessageBox");
+        if (box == null) return;
+
+        // 예전 버전에서 상자에 직접 붙였던 컴포넌트는 걷어낸다
+        ToastMessage stale = box.GetComponent<ToastMessage>();
+        if (stale != null) Object.DestroyImmediate(stale);
+
+        CanvasGroup fade = box.GetComponent<CanvasGroup>();
+        if (fade == null) fade = box.gameObject.AddComponent<CanvasGroup>();
+
+        ToastMessage message = group.GetComponent<ToastMessage>();
+        if (message == null) message = group.gameObject.AddComponent<ToastMessage>();
+
+        message.box = box as RectTransform;
+        message.label = box.GetComponentInChildren<TMP_Text>(true);
+        message.group = fade;
+
+        EditorUtility.SetDirty(message);
     }
 
     static Transform Find(Transform root, string path)
