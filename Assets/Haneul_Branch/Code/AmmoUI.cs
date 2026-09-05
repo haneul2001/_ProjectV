@@ -1,29 +1,55 @@
-using UnityEngine;
 using TMPro;
+using UnityEngine;
 
+// 탄창 UI. 실제 탄약을 들고 있는 PlayerFire 의 값을 그대로 비춘다.
 public class AmmoUI : MonoBehaviour
 {
-   public enum DisplayType{Current,Max} //현재, 최대
-   [Header("무엇을 표시할 지")]
-   public DisplayType displayType = DisplayType.Current;
+    public enum DisplayType
+    {
+        Current,   // 지금 탄창에 남은 탄
+        Reserve,   // 탄창 밖 여분 탄
+        Magazine   // 탄창 최대치
+    }
 
-   [Header("연결 (비워두면 자동으로 찾음)")]
-   public Ammo ammo;
-   private TMP_Text text;
+    [Header("무엇을 표시할 지")]
+    public DisplayType displayType = DisplayType.Current;
+
+    [Header("연결 (비워두면 자동으로 찾음)")]
+    public PlayerFire source;
+
+    private TMP_Text text;
+    private int shown = int.MinValue;
+
+    void Awake()
+    {
+        text = GetComponent<TMP_Text>();
+    }
 
     void Start()
     {
-        text = GetComponent<TMP_Text>();
-        ammo = FindAnyObjectByType<Ammo>();
+        if (source == null) source = FindAnyObjectByType<PlayerFire>();
+        if (source == null)
+            Debug.LogWarning("[AmmoUI] 씬에서 PlayerFire 를 찾지 못했습니다.", this);
     }
 
-    // Update is called once per frame
     void Update()
     {
-        if(ammo == null || text == null) return;
-       if (displayType == DisplayType.Current)
-            text.text = ammo.currentAmmo.ToString();
-        else
-            text.text = ammo.maxAmmo.ToString();
+        if (source == null || text == null) return;
+
+        int value = CurrentValue();
+        if (value == shown) return; // 값이 바뀔 때만 갱신 (매 프레임 문자열 만들지 않도록)
+
+        shown = value;
+        text.text = value.ToString();
+    }
+
+    int CurrentValue()
+    {
+        switch (displayType)
+        {
+            case DisplayType.Reserve:  return source.totalAmmo;
+            case DisplayType.Magazine: return source.magazineSize;
+            default:                   return source.currentAmmo;
+        }
     }
 }
