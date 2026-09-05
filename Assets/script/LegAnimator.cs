@@ -61,12 +61,31 @@ public class LegAnimator : MonoBehaviour
     [Tooltip("무릎 접히는 방향이 반대로(이상하게) 보이면 체크")]
     public bool invertJumpKneeBend = false;
 
+    [Header("발소리")]
+    [Tooltip("발소리를 재생할 AudioSource. 인스펙터에서 직접 넣으세요. 코드는 설정을 건드리지 않고 PlayOneShot만 호출합니다.")]
+    public AudioSource footstepSource;
+    [Tooltip("여러 개 넣으면 매번 랜덤으로 골라 재생합니다.")]
+    public AudioClip[] footstepClips;
+    [Range(0f, 1f)] public float footstepVolume = 0.6f;
+    [Tooltip("이만큼 실제로 이동할 때마다 발소리 1회. 크면 뜸해집니다.")]
+    public float footstepStrideLength = 2.2f;
+    [Tooltip("이 속도보다 느리면 발소리 없음")]
+    public float footstepMinSpeed = 0.2f;
+    [Tooltip("발소리마다 이 범위에서 피치를 랜덤으로 뽑습니다. 같은 클립이 반복돼도 다르게 들립니다. " +
+             "둘 다 1로 두면 랜덤 없음. 0.9~1.1이 무난하고, 너무 벌리면 다른 사람 발소리처럼 들립니다.")]
+    public float footstepPitchMin = 0.92f;
+    public float footstepPitchMax = 1.08f;
+
     [Header("방향 보정")]
     [Tooltip("모델 리깅에 따라 다리가 반대로 움직이면 체크해서 뒤집으세요")]
     public bool invertSwingDirection = false;
 
     private float phase = 0f;
     private float currentAmplitudeMultiplier = 1f; // 접지/공중 상태에 따른 블렌드 값 (0~1)
+
+    // 발소리용: 실제 이동 거리를 누적해서 일정 거리마다 재생
+    private Vector3 lastFootstepPos;
+    private float distanceAccum;
 
     void Start()
     {
@@ -97,6 +116,12 @@ public class LegAnimator : MonoBehaviour
             Debug.LogWarning($"[LegAnimator] '{leftLowerLegBoneName}' 이름의 본을 하이어라키에서 못 찾았습니다. Bone Name 필드를 확인하세요.");
         if (rightLowerLeg == null)
             Debug.LogWarning($"[LegAnimator] '{rightLowerLegBoneName}' 이름의 본을 하이어라키에서 못 찾았습니다. Bone Name 필드를 확인하세요.");
+
+        if (player != null)
+        {
+            lastFootstepPos = player.transform.position;
+            distanceAccum = footstepStrideLength; // 첫 걸음에 바로 소리가 나도록
+        }
 
         if (leftUpperLeg != null) defaultLeftUpperLeg = leftUpperLeg.localRotation;
         if (rightUpperLeg != null) defaultRightUpperLeg = rightUpperLeg.localRotation;
@@ -132,6 +157,9 @@ public class LegAnimator : MonoBehaviour
 
         // 속도가 빠를수록 위상(phase)이 빨리 진행 -> 다리가 빨리 왕복
         phase += speed * Time.deltaTime * strideFrequency;
+
+        // 발소리 재생 (아래 애니메이션 계산에는 아무 영향 없음)
+        HandleFootstepAudio(speed, grounded);
 
         // 속도가 빠를수록 스윙 폭도 커짐 (speedForFullSwing에서 최대치 도달)
         float speedFactor = Mathf.Clamp01(speed / speedForFullSwing);
@@ -183,5 +211,36 @@ public class LegAnimator : MonoBehaviour
 
         if (rightLowerLeg != null)
             rightLowerLeg.localRotation = defaultRightLowerLeg * Quaternion.Euler(-jumpKneeBend, 0f, 0f);
+    }
+
+    // 실제로 움직인 거리를 누적해서 footstepStrideLength마다 한 번 재생합니다.
+    // 벽에 막혀 제자리걸음일 때는 위치가 안 변하므로 소리도 안 납니다.
+    private void HandleFootstepAudio(float speed, bool grounded)
+    {
+        Vector3 pos = player.transform.position;
+        Vector3 delta = pos - lastFootstepPos;
+        lastFootstepPos = pos;
+        delta.y = 0f; // 수평 이동만. 점프로 오르내리는 건 거리로 안 침
+
+        if (!grounded || speed < footstepMinSpeed)
+        {
+            distanceAccum = footstepStrideLength; // 다시 걸으면 즉시 첫 발소리
+            return;
+        }
+
+        distanceAccum += delta.magnitude;
+        if (distanceAccum < footstepStrideLength) return;
+
+        distanceAccum = 0f;
+
+        if (footstepSource == null) return;
+        if (footstepClips == null || footstepClips.Length == 0) return;
+
+        AudioClip clip = footstepClips[Random.Range(0, footstepClips.Length)];
+        if (clip == null) return;
+
+        // PlayOneShot은 호출 시점의 소스 pitch를 따라가므로, 재생 직전에 흔들어줍니다.
+        footstepSource.pitch = Random.Range(footstepPitchMin, footstepPitchMax);
+        footstepSource.PlayOneShot(clip, footstepVolume);
     }
 }

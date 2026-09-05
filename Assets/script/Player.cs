@@ -27,11 +27,18 @@ public class Player : MonoBehaviour
     private Vector3 moveDir;
     private bool jumpRequested;
 
-    private bool isGrounded = true;
+    // 접지 판정. 태그도 레이어도 안 봅니다. 닿은 면이 나를 위로 떠받치고
+    // 있는지(법선이 위쪽인지)만 보므로 경사로든 조각난 바닥이든 그냥 됩니다.
+    private const float GroundNormalThreshold = 0.4f; // 이보다 눕은 면은 벽으로 취급
+    private const float GroundGrace = 0.15f;          // 접촉이 잠깐 끊겨도 버티는 시간
+    private const float JumpIgnoreTime = 0.1f;        // 점프 직후 강제 공중 시간
+    private float lastGroundedTime = -999f;
+    private float jumpIgnoreUntil;
 
     public Vector2 MoveInput { get; private set; }
     public float HorizontalSpeed => moveDir.magnitude * moveSpeed;
-    public bool IsGrounded => isGrounded;
+    public bool IsGrounded =>
+        Time.time >= jumpIgnoreUntil && (Time.time - lastGroundedTime) <= GroundGrace;
 
     void Start()
     {
@@ -53,7 +60,9 @@ public class Player : MonoBehaviour
         rawV = Input.GetAxis("Vertical");
         MoveInput = new Vector2(rawH, rawV);
 
-        if (Input.GetKeyDown(KeyCode.Space) && jumpcount < jumplimit)
+        // IsGrounded를 같이 봅니다. jumpcount만 보면 발판에서 걸어 내려온 직후
+        // (카운터는 0인 채로 공중) 허공에서 한 번 더 뛸 수 있었습니다.
+        if (Input.GetKeyDown(KeyCode.Space) && jumpcount < jumplimit && IsGrounded)
         {
             jumpRequested = true;
         }
@@ -85,23 +94,45 @@ public class Player : MonoBehaviour
             rb.AddForce(Vector3.up * jumpPower, ForceMode.Impulse);
             jumpcount++;
             jumpRequested = false;
+
+            // 점프한 순간 바로 공중 상태로. 안 그러면 아직 발이 바닥에 걸쳐 있어서
+            // 점프 애니메이션이 늦게 나옵니다.
+            lastGroundedTime = -999f;
+            jumpIgnoreUntil = Time.time + JumpIgnoreTime;
         }
     }
 
     private void OnCollisionEnter(Collision collision)
     {
-        if (collision.gameObject.CompareTag("Ground"))
-        {
-            jumpcount = 0;
-            isGrounded = true;
-        }
+        EvaluateGroundContacts(collision);
     }
 
     private void OnCollisionExit(Collision collision)
     {
-        if (collision.gameObject.CompareTag("Ground"))
+        // 원본에선 여기서 isGrounded = false를 했지만, 바닥이 여러 조각이면
+        // 다음 조각의 Enter보다 이전 조각의 Exit이 먼저 와서 한 프레임씩
+        // 공중으로 튀었습니다. 지금은 GroundGrace 시간이 알아서 처리하므로
+        // 여기서 할 일이 없습니다. 순서 유지를 위해 자리만 남겨둡니다.
+    }
+
+    // 매 물리 스텝마다 접촉을 갱신합니다. Enter만으로는 가만히 서 있을 때
+    // 갱신이 안 됩니다.
+    private void OnCollisionStay(Collision collision)
+    {
+        EvaluateGroundContacts(collision);
+    }
+
+    // 닿은 면 중 하나라도 나를 위로 떠받치면 땅. 벽(법선이 수평)은 제외.
+    private void EvaluateGroundContacts(Collision collision)
+    {
+        for (int i = 0; i < collision.contactCount; i++)
         {
-            isGrounded = false;
+            if (collision.GetContact(i).normal.y > GroundNormalThreshold)
+            {
+                lastGroundedTime = Time.time;
+                jumpcount = 0;
+                return;
+            }
         }
     }
 }
