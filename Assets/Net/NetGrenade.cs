@@ -45,6 +45,9 @@ public class NetGrenade : NetworkBehaviour
     private bool exploded;
     private float spawnTime;
 
+    // 던진 사람. 폭발로 맞췄을 때 이 사람에게만 히트마커를 보냅니다.
+    private ulong attackerId = ulong.MaxValue;
+
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
@@ -84,6 +87,7 @@ public class NetGrenade : NetworkBehaviour
             }
         }
 
+        attackerId = throwerId;
         rb.linearVelocity = velocity;
     }
 
@@ -139,7 +143,7 @@ public class NetGrenade : NetworkBehaviour
             float falloff = Mathf.Clamp01(1f - dist / damageRadius);
             float damage = maxDamage * falloff;
 
-            if (damage > 0.5f) hp.ServerApplyDamage(damage);
+            if (damage > 0.5f) hp.ServerApplyDamage(damage, attackerId);
         }
     }
 

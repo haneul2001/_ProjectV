@@ -40,6 +40,14 @@ public class GameHUD : MonoBehaviour
     [Header("배너 (중앙)")]
     public TMP_Text bannerText;
 
+    [Header("히트마커 (크로스헤어 위 X 표시)")]
+    [Tooltip("X 모양 4조각을 담고 있는 CanvasGroup. 맞출 때만 잠깐 나타납니다.")]
+    public CanvasGroup hitmarkerGroup;
+    [Tooltip("X를 이루는 이미지 조각들. 처치했을 때 색을 바꾸기 위해 필요합니다.")]
+    public Image[] hitmarkerParts;
+    [Tooltip("히트마커가 보이는 시간(초)")]
+    public float hitmarkerDuration = 0.35f;
+
     [Header("피격 비네트")]
     public Image lowHealthVignette;
 
@@ -49,7 +57,9 @@ public class GameHUD : MonoBehaviour
     public Color criticalColor = new Color(0.95f, 0.32f, 0.32f, 0.92f);
     public Color pipOnMine = new Color(0.45f, 0.85f, 1f, 1f);
     public Color pipOnTheirs = new Color(1f, 0.42f, 0.42f, 1f);
-    public Color pipOff = new Color(1f, 1f, 1f, 0.18f);
+    public Color pipOff = new Color(1f, 1f, 1f, 0.18f);    public Color hitmarkerColor = new Color(1f, 1f, 1f, 0.95f);
+    public Color hitmarkerKillColor = new Color(1f, 0.30f, 0.25f, 1f);
+
 
     private PlayerHealth localHealth;
     private PlayerFire localFire;
@@ -57,9 +67,19 @@ public class GameHUD : MonoBehaviour
 
     private float bannerHideTime;
     private float ghostValue = 1f;
+    private float hitmarkerHideTime;
 
-    void OnEnable() { RoundManager.BannerRequested += ShowBanner; }
-    void OnDisable() { RoundManager.BannerRequested -= ShowBanner; }
+    void OnEnable()
+    {
+        RoundManager.BannerRequested += ShowBanner;
+        PlayerHealth.LocalHitConfirmed += ShowHitmarker;
+    }
+
+    void OnDisable()
+    {
+        RoundManager.BannerRequested -= ShowBanner;
+        PlayerHealth.LocalHitConfirmed -= ShowHitmarker;
+    }
 
     void Start()
     {
@@ -76,6 +96,7 @@ public class GameHUD : MonoBehaviour
         UpdateGrenades();
         UpdateRound();
         UpdateBanner();
+        UpdateHitmarker();
     }
 
     private void AcquireLocalPlayer()
@@ -192,6 +213,44 @@ public class GameHUD : MonoBehaviour
         if (bannerText.text.Length == 0) return;
 
         if (Time.time >= bannerHideTime) bannerText.text = "";
+    }
+
+    // ------------------------------------------------------------------
+    // 히트마커 : 서버가 "맞췄다"고 확인해준 순간에만 뜹니다.
+    // 내 화면에서 맞은 것처럼 보여도 서버가 인정 안 하면 안 뜨므로,
+    // 실제로 데미지가 들어갔는지를 정직하게 알려줍니다.
+    // ------------------------------------------------------------------
+    private void ShowHitmarker(bool killed)
+    {
+        hitmarkerHideTime = Time.time + hitmarkerDuration;
+
+        if (hitmarkerParts != null)
+        {
+            var c = killed ? hitmarkerKillColor : hitmarkerColor;
+            foreach (var part in hitmarkerParts)
+                if (part != null) part.color = c;
+        }
+
+        if (hitmarkerGroup != null)
+        {
+            hitmarkerGroup.alpha = 1f;
+            // 처치했을 때는 살짝 크게 튀어나오게
+            hitmarkerGroup.transform.localScale = Vector3.one * (killed ? 1.45f : 1.15f);
+        }
+    }
+
+    private void UpdateHitmarker()
+    {
+        if (hitmarkerGroup == null) return;
+        if (hitmarkerGroup.alpha <= 0f) return;
+
+        // 원래 크기로 빠르게 수축하면서
+        hitmarkerGroup.transform.localScale = Vector3.Lerp(
+            hitmarkerGroup.transform.localScale, Vector3.one, Time.deltaTime * 14f);
+
+        // 표시 시간이 끝나면 부드럽게 사라집니다.
+        if (Time.time >= hitmarkerHideTime)
+            hitmarkerGroup.alpha = Mathf.MoveTowards(hitmarkerGroup.alpha, 0f, Time.deltaTime * 6f);
     }
 
     private void ShowBanner(string message, float duration)

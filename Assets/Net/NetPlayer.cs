@@ -31,6 +31,11 @@ public class NetPlayer : NetworkBehaviour
     [Tooltip("플레이어가 스폰되기 전까지 게임 씬을 비춰주는 임시 카메라의 이름. " +
              "내 캐릭터가 스폰되면 자동으로 꺼집니다.")]
     public string standbyCameraName = "StandbyCamera";
+    [Header("추락 복구 (안전망)")]
+    [Tooltip("이 높이 아래로 떨어지면 마지막으로 땅을 밟았던 자리로 되돌립니다. " +
+             "맵 바닥이 y=0이므로 넉넉하게 아래로 잡아둡니다.")]
+    public float fallResetY = -8f;
+
 
 
     // --- 원격 표현용 동기화 값 (소유자가 쓰고 모두가 읽음) ---
@@ -59,10 +64,82 @@ public class NetPlayer : NetworkBehaviour
     private int lastAmmo;
     private bool inputFrozen;
 
+    // 죽었을 때 몸을 숨기기 위해 미리 모아둡니다.
+    // 카메라는 Head 본의 자식이라 렌더러만 꺼도 시야는 그대로 유지됩니다.
+    private Renderer[] bodyRenderers;
+    private Collider[] bodyColliders;
+
+    // 추락 복구용. 마지막으로 땅을 밟고 있던 안전한 위치를 계속 갱신해둡니다.
+    private Vector3 lastSafePosition;
+    private bool hasSafePosition;
+
+    // 원래 꺼져 있던 것(예: 루트의 캡슐 MeshRenderer, 디버그용 콜라이더)까지
+    // 되살릴 때 같이 켜버리면 안 되므로, 스폰 시점의 상태를 기억해둡니다.
+    private bool[] rendererWasEnabled;
+    private bool[] colliderWasEnabled;
+
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
         health = GetComponent<PlayerHealth>();
+
+        bodyRenderers = GetComponentsInChildren<Renderer>(true);
+        bodyColliders = GetComponentsInChildren<Collider>(true);
+
+        // 프리팹에 저장된 "평소 상태"를 그대로 스냅샷해둡니다.
+        rendererWasEnabled = new bool[bodyRenderers.Length];
+        for (int i = 0; i < bodyRenderers.Length; i++)
+            rendererWasEnabled[i] = bodyRenderers[i] != null && bodyRenderers[i].enabled;
+
+        colliderWasEnabled = new bool[bodyColliders.Length];
+        for (int i = 0; i < bodyColliders.Length; i++)
+            colliderWasEnabled[i] = bodyColliders[i] != null && bodyColliders[i].enabled;
+    }
+
+    /// <summary>
+    /// 시체를 치웁니다. 죽으면 몸과 콜라이더를 감추고, 라운드가 다시 시작되면 되돌립니다.
+    /// 모든 클라이언트에서 실행되어야 하므로 IsDead의 OnValueChanged로 걸어둡니다.
+    /// </summary>
+    private void SetBodyVisible(bool visible)
+    {
+        // 되살릴 때는 "원래 켜져 있던 것"만 켭니다.
+        // 루트의 캡슐 MeshRenderer처럼 처음부터 꺼져 있던 건 계속 꺼진 채로 둡니다.
+        if (bodyRenderers != null)
+        {
+            for (int i = 0; i < bodyRenderers.Length; i++)
+            {
+                if (bodyRenderers[i] == null) continue;
+                bodyRenderers[i].enabled = visible && rendererWasEnabled[i];
+            }
+        }
+
+        // 시체에 총알이 막히거나 몸이 걸리는 걸 막습니다.
+        if (bodyColliders != null)
+        {
+            for (int i = 0; i < bodyColliders.Length; i++)
+            {
+                if (bodyColliders[i] == null) continue;
+                bodyColliders[i].enabled = visible && colliderWasEnabled[i];
+            }
+        }
+
+        // 콜라이더를 끄면 발밑 바닥까지 사라져서 시체가 맵 아래로 떨어집니다.
+        // 죽어있는 동안에는 물리를 멈춰서 그 자리에 그대로 두고,
+        // 살아날 때 다시 물리를 켭니다. (원격 캐릭터는 원래부터 kinematic이라 건드리지 않습니다)
+        if (rb != null && IsOwner)
+        {
+            if (!visible)
+            {
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+            }
+            rb.isKinematic = !visible;
+        }
+    }
+
+    private void OnDeadChanged(bool wasDead, bool isDead)
+    {
+        SetBodyVisible(!isDead);
     }
 
     public override void OnNetworkSpawn()
@@ -104,11 +181,29 @@ public class NetPlayer : NetworkBehaviour
             HookUpSceneReferences();
             if (playerFire != null) lastAmmo = playerFire.currentAmmo;
 
+            // 저장해둔 마우스 감도를 내 캐릭터에만 적용합니다.
+            GameSettings.ApplyTo(playerMove, cameraRotate);
+
+            lastSafePosition = transform.position;
+            hasSafePosition = true;
+
             Cursor.visible = false;
             Cursor.lockState = CursorLockMode.Locked;
         }
 
+        // 6. 사망 시 몸 숨김 / 라운드 재시작 시 다시 표시
+        if (health != null)
+        {
+            health.IsDead.OnValueChanged += OnDeadChanged;
+            SetBodyVisible(!health.IsDead.Value);
+        }
+
         gameObject.name = owner ? "player (LOCAL)" : "player (REMOTE)";
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        if (health != null) health.IsDead.OnValueChanged -= OnDeadChanged;
     }
 
     /// <summary>
@@ -139,22 +234,30 @@ public class NetPlayer : NetworkBehaviour
 
     private void OwnerUpdate()
     {
-        // 죽었거나 라운드 사이면 조작을 막습니다.
+        // 죽었거나, 라운드 사이거나, ESC 설정 창이 열려있으면 조작을 막습니다.
         bool shouldFreeze = health != null && health.IsDead.Value;
         var round = RoundManager.Instance;
         if (round != null && !round.RoundActive.Value) shouldFreeze = true;
+        if (PauseMenu.IsOpen) shouldFreeze = true;
 
         if (shouldFreeze != inputFrozen)
         {
             inputFrozen = shouldFreeze;
             if (playerMove != null) playerMove.useLocalInput = !shouldFreeze;
             if (playerFire != null) playerFire.enabled = !shouldFreeze;
+
+            // 시야 회전도 같이 멈춥니다. 안 그러면 설정 창에서 마우스를 움직일 때
+            // 뒤에서 화면이 같이 돌아갑니다.
+            if (cameraRotate != null) cameraRotate.enabled = !shouldFreeze;
+
             if (extraOwnerOnly != null)
             {
                 foreach (var mb in extraOwnerOnly)
                     if (mb != null) mb.enabled = !shouldFreeze;
             }
         }
+
+        CheckFall();
 
         // 원격 표현용 값 송출
         if (cameraRotate != null) aimPitch.Value = cameraRotate.tempX;
@@ -181,6 +284,42 @@ public class NetPlayer : NetworkBehaviour
             if (playerFire.currentAmmo < lastAmmo) FireEffectRpc();
             lastAmmo = playerFire.currentAmmo;
         }
+    }
+
+    /// <summary>
+    /// 맵 밖으로 떨어졌을 때 마지막 안전 지점으로 되돌립니다.
+    ///
+    /// 경사면 아랫면에 끼어서 바닥을 뚫는 문제는 바닥 콜라이더에 두께를 주고
+    /// maxDepenetrationVelocity를 낮춰서 막았지만, 물리는 언제든 예상 밖으로
+    /// 동작할 수 있어서 마지막 방어선을 하나 둡니다.
+    /// 이게 없으면 한 번 뚫렸을 때 라운드가 끝날 때까지 무한히 떨어집니다.
+    /// </summary>
+    private void CheckFall()
+    {
+        // 땅을 밟고 있고 정상 상태일 때의 위치를 계속 기억해둡니다.
+        if (!inputFrozen && playerMove != null && playerMove.IsGrounded &&
+            transform.position.y > fallResetY)
+        {
+            lastSafePosition = transform.position;
+            hasSafePosition = true;
+            return;
+        }
+
+        if (transform.position.y >= fallResetY) return;
+
+        Vector3 target = hasSafePosition
+            ? lastSafePosition + Vector3.up * 0.5f
+            : transform.position + Vector3.up * 10f;
+
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.position = target;
+        }
+        transform.position = target;
+
+        Debug.LogWarning("[NetPlayer] 맵 밖으로 떨어져 마지막 안전 지점으로 복구했습니다.");
     }
 
     private void RemoteUpdate()
@@ -284,6 +423,10 @@ public class NetPlayer : NetworkBehaviour
             rb.position = position;
             rb.rotation = Quaternion.Euler(0f, yaw, 0f);
         }
+
+        // 리스폰 지점을 새로운 안전 지점으로 삼습니다.
+        lastSafePosition = position;
+        hasSafePosition = true;
 
         // 카메라 상하각도 정면으로 초기화
         if (cameraRotate != null) cameraRotate.tempX = 0f;

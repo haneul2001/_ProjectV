@@ -40,6 +40,8 @@ public class MatchSession : MonoBehaviour
     public event Action Changed;
 
     private bool gameStarting;
+    private bool leaving;
+    private bool disconnectHooked;
 
     void Awake()
     {
@@ -198,36 +200,83 @@ public class MatchSession : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 세션에서 나가고 로비로 돌아갑니다.
+    /// 매치 종료, ESC 메뉴의 "매치 나가기", 상대 이탈 감지 등 모든 경로가 여기로 모입니다.
+    /// </summary>
     public async void Leave()
     {
+        if (leaving) return;   // 여러 경로에서 동시에 불려도 한 번만 처리합니다.
+        leaving = true;
         gameStarting = false;
 
-        if (Session == null)
-        {
-            if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
-                NetworkManager.Singleton.Shutdown();
-            return;
-        }
+        var s = Session;
+        Session = null;
 
         try
         {
             Busy = true;
             Notify("나가는 중...");
-            var s = Session;
-            Session = null;
-            await s.LeaveAsync();
+
+            if (s != null) await s.LeaveAsync();
         }
         catch (Exception e)
         {
-            Debug.LogException(e);
+            // 이미 끊긴 세션에서 나가려 하면 예외가 날 수 있는데, 그래도 로비로는 가야 합니다.
+            Debug.LogWarning("[MatchSession] 세션 나가기 실패(무시하고 로비로 이동): " + e.Message);
         }
         finally
         {
+            // Relay 연결이 남아있으면 다음 매칭이 꼬입니다. 확실히 내려줍니다.
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
+                NetworkManager.Singleton.Shutdown();
+
             Busy = false;
             Notify("세션에서 나왔습니다.");
 
+            Cursor.visible = true;
+            Cursor.lockState = CursorLockMode.None;
+
             if (SceneManager.GetActiveScene().name != LobbySceneName)
                 SceneManager.LoadScene(LobbySceneName);
+
+            leaving = false;
+        }
+    }
+
+    /// <summary>로비의 "게임 종료" 버튼.</summary>
+    public void QuitGame()
+    {
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
+    }
+
+    // ------------------------------------------------------------------
+    // 접속 끊김 감지
+    // ------------------------------------------------------------------
+    /// <summary>
+    /// 매치 도중 상대(또는 호스트)가 사라졌을 때 로비로 돌려보냅니다.
+    ///
+    /// 호스트가 나간 경우: 게스트는 서버와의 연결 자체가 끊기므로
+    /// RoundManager(서버에만 있음)가 알려줄 방법이 없습니다. 그래서 여기서 직접 잡습니다.
+    /// 게스트가 나간 경우: 서버 쪽 RoundManager가 배너를 띄우고 5초 뒤 양쪽을 로비로 보냅니다.
+    /// </summary>
+    private void OnClientDisconnected(ulong clientId)
+    {
+        var nm = NetworkManager.Singleton;
+        if (nm == null) return;
+
+        // 서버는 RoundManager가 처리하므로 여기서는 클라이언트만 신경 씁니다.
+        if (nm.IsServer) return;
+
+        // 내가 끊겼거나 호스트가 사라진 경우
+        if (clientId == nm.LocalClientId || clientId == NetworkManager.ServerClientId)
+        {
+            StatusMessage = "상대와의 연결이 끊어졌습니다.";
+            Leave();
         }
     }
 
@@ -236,10 +285,18 @@ public class MatchSession : MonoBehaviour
     // ------------------------------------------------------------------
     void Update()
     {
+        var nm = NetworkManager.Singleton;
+
+        // NetworkManager는 세션에 들어갈 때 준비되므로, 준비되면 한 번만 연결합니다.
+        if (!disconnectHooked && nm != null)
+        {
+            nm.OnClientDisconnectCallback += OnClientDisconnected;
+            disconnectHooked = true;
+        }
+
         if (gameStarting || Session == null) return;
         if (!Session.IsHost) return;
 
-        var nm = NetworkManager.Singleton;
         if (nm == null || !nm.IsServer) return;
 
         // 로비 기준 인원과 실제 Relay 연결 인원이 모두 찼을 때만 시작합니다.
@@ -258,6 +315,12 @@ public class MatchSession : MonoBehaviour
             Notify("게임 씬 로드 실패: " + status +
                    "\n(File > Build Profiles 의 Scene List에 GameScene이 들어있는지 확인하세요)");
         }
+    }
+
+    void OnDestroy()
+    {
+        if (disconnectHooked && NetworkManager.Singleton != null)
+            NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
     }
 
     // ------------------------------------------------------------------

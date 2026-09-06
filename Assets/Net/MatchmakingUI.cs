@@ -13,6 +13,7 @@ public class MatchmakingUI : MonoBehaviour
     public Button createRoomButton;
     public Button joinCodeButton;
     public Button leaveButton;
+    public Button quitButton;
 
     [Header("입력 / 표시")]
     public TMP_InputField codeInput;
@@ -39,6 +40,9 @@ public class MatchmakingUI : MonoBehaviour
 
         if (leaveButton != null)
             leaveButton.onClick.AddListener(() => MatchSession.Instance.Leave());
+        if (quitButton != null)
+            quitButton.onClick.AddListener(() => MatchSession.Instance.QuitGame());
+
 
         Refresh();
     }

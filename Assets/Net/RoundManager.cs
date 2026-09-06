@@ -17,6 +17,9 @@ public class RoundManager : NetworkBehaviour
 
     [Tooltip("라운드가 끝나고 다음 라운드가 시작되기까지의 대기 시간(초)")]
     public float roundResetDelay = 3f;
+    [Tooltip("매치가 끝나고 결과를 보여준 뒤 로비로 돌아가기까지의 시간(초)")]
+    public float returnToLobbyDelay = 5f;
+
 
     [Header("스폰")]
     [Tooltip("NetworkObject가 붙은 플레이어 프리팹")]
@@ -171,6 +174,10 @@ public class RoundManager : NetworkBehaviour
         MatchOver.Value = true;
         yield return new WaitForSeconds(2f);
         MatchResultRpc(winnerId);
+
+        // 결과를 보여준 뒤 양쪽 모두 로비로 돌려보냅니다.
+        yield return new WaitForSeconds(returnToLobbyDelay);
+        ReturnToLobbyRpc();
     }
 
     private void OnClientDisconnect(ulong clientId)
@@ -180,7 +187,14 @@ public class RoundManager : NetworkBehaviour
 
         RoundActive.Value = false;
         MatchOver.Value = true;
-        ShowBannerRpc("상대가 나갔습니다.", 5f);
+        ShowBannerRpc("상대가 나갔습니다. 로비로 돌아갑니다...", returnToLobbyDelay);
+        StartCoroutine(ReturnToLobbyAfterDelay());
+    }
+
+    private IEnumerator ReturnToLobbyAfterDelay()
+    {
+        yield return new WaitForSeconds(returnToLobbyDelay);
+        ReturnToLobbyRpc();
     }
 
     // ------------------------------------------------------------------
@@ -203,7 +217,25 @@ public class RoundManager : NetworkBehaviour
     private void MatchResultRpc(ulong winnerClientId)
     {
         bool iWon = NetworkManager.Singleton.LocalClientId == winnerClientId;
-        BannerRequested?.Invoke(iWon ? "매치 승리!  🎉" : "매치 패배", 10f);
+        BannerRequested?.Invoke(iWon ? "매치 승리!" : "매치 패배", returnToLobbyDelay + 2f);
+    }
+
+    /// <summary>
+    /// 매치 종료. 양쪽이 각자 세션을 정리하고 매치메이킹 씬으로 돌아갑니다.
+    /// 호스트가 NGO로 씬만 강제로 넘기면 Relay 세션이 그대로 살아있어서
+    /// 다음 매칭이 안 잡히기 때문에, 반드시 각자 Leave()를 거쳐야 합니다.
+    /// </summary>
+    [Rpc(SendTo.Everyone)]
+    private void ReturnToLobbyRpc()
+    {
+        // 게임 중에 잠겨있던 커서를 풀어줍니다. 안 풀면 로비에서 버튼을 못 누릅니다.
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+
+        if (MatchSession.Instance != null)
+            MatchSession.Instance.Leave();
+        else
+            UnityEngine.SceneManagement.SceneManager.LoadScene(MatchSession.LobbySceneName);
     }
 
     // ------------------------------------------------------------------

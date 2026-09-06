@@ -67,6 +67,17 @@ public class Player : MonoBehaviour
         rb.interpolation = RigidbodyInterpolation.Interpolate;
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         rb.freezeRotation = true; // MoveRotation으로 Y축을 "정식으로" 돌리므로 전체를 얼려도 충돌 없음
+
+        // [주의] maxDepenetrationVelocity는 절대 낮추지 마세요.
+        //
+        // 이 스크립트의 이동은 rb.MovePosition으로 캡슐을 일단 벽 안쪽으로 밀어 넣고,
+        // 물리 엔진의 겹침 해소(depenetration)가 다시 밀어내는 방식으로 성립합니다.
+        // 즉 겹침 해소가 "벽을 막아주는 주체"이자 "경사로를 밀어 올려주는 힘"입니다.
+        // 이 값을 낮추면 밀어내는 속도가 밀어 넣는 속도를 못 이겨서
+        // 벽과 경사면(두께 0.2)을 그대로 통과해버립니다.
+        //
+        // 경사면 아랫면에 끼어 바닥으로 꺼지던 문제는 이 값이 아니라
+        // 바닥 콜라이더(GameScene의 FloorCollider)에 두께를 줘서 해결했습니다.
     }
 
     void Update()
