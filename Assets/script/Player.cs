@@ -35,10 +35,30 @@ public class Player : MonoBehaviour
     private float lastGroundedTime = -999f;
     private float jumpIgnoreUntil;
 
-    public Vector2 MoveInput { get; private set; }
-    public float HorizontalSpeed => moveDir.magnitude * moveSpeed;
-    public bool IsGrounded =>
-        Time.time >= jumpIgnoreUntil && (Time.time - lastGroundedTime) <= GroundGrace;
+        // --- 멀티플레이 연동 ---------------------------------------------------
+    // 내 캐릭터가 아니면 NetPlayer.cs가 useLocalInput을 false로 내리고, 원격에서 받은
+    // 상태를 ApplyRemoteState로 밀어넣습니다. 컴포넌트를 통째로 끄지 않는 이유는
+    // LegAnimator가 아래 세 프로퍼티를 읽어서 다리를 움직이기 때문입니다.
+    // 꺼버리면 상대 다리가 그 자리에 얼어붙습니다.
+    [HideInInspector] public bool useLocalInput = true;
+
+    private Vector2 localMoveInput;
+    private Vector2 remoteMoveInput;
+    private float remoteHorizontalSpeed;
+    private bool remoteGrounded;
+
+    public void ApplyRemoteState(Vector2 input, float speed, bool grounded)
+    {
+        remoteMoveInput = input;
+        remoteHorizontalSpeed = speed;
+        remoteGrounded = grounded;
+    }
+
+    public Vector2 MoveInput => useLocalInput ? localMoveInput : remoteMoveInput;
+        public float HorizontalSpeed => useLocalInput ? moveDir.magnitude * moveSpeed : remoteHorizontalSpeed;
+    public bool IsGrounded => useLocalInput
+        ? (Time.time >= jumpIgnoreUntil && (Time.time - lastGroundedTime) <= GroundGrace)
+        : remoteGrounded;
 
     void Start()
     {
@@ -51,6 +71,9 @@ public class Player : MonoBehaviour
 
     void Update()
     {
+        // 원격(상대) 캐릭터는 내 키보드/마우스를 읽으면 안 됩니다.
+        // 위치와 회전은 NetworkTransform이, 애니메이션용 상태는 ApplyRemoteState가 채웁니다.
+        if (!useLocalInput) return;
         float mouseMoveX = Input.GetAxisRaw("Mouse X");
         yawAccum += mouseMoveX * rotateSpeed * Time.deltaTime;
 
@@ -58,7 +81,7 @@ public class Player : MonoBehaviour
         // "이번 스텝에 적용될 회전"을 반영한 뒤에 계산합니다.
         rawH = Input.GetAxis("Horizontal");
         rawV = Input.GetAxis("Vertical");
-        MoveInput = new Vector2(rawH, rawV);
+        localMoveInput = new Vector2(rawH, rawV);
 
         // IsGrounded를 같이 봅니다. jumpcount만 보면 발판에서 걸어 내려온 직후
         // (카운터는 0인 채로 공중) 허공에서 한 번 더 뛸 수 있었습니다.
@@ -70,6 +93,7 @@ public class Player : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (!useLocalInput) return;
         // 1. 회전을 먼저 적용합니다.
         if (yawAccum != 0f)
         {

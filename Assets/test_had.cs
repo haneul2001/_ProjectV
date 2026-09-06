@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 public class test_had : MonoBehaviour
 {
@@ -48,6 +48,14 @@ public class test_had : MonoBehaviour
     [Tooltip("튀는 값을 얼마나 빨리 따라갈지. 값이 낮을수록 더 부드럽지만 반응이 느려집니다.")]
     public float swaySmoothSpeed = 15f;
     private float smoothedAngleY = 0f;
+    [Header("멀티플레이 - 원격 플레이어용")]
+    [Tooltip("내 캐릭터가 아닐 때 NetPlayer.cs가 true로 켭니다. 켜지면 Camera.main 대신 " +
+             "네트워크로 받은 netAngleX/netAngleY를 조준 각도로 씁니다. " +
+             "이걸 안 하면 상대 캐릭터의 머리와 팔이 '내' 마우스를 따라 움직입니다.")]
+    [HideInInspector] public bool useNetworkAim = false;
+    [HideInInspector] public float netAngleX = 0f;
+    [HideInInspector] public float netAngleY = 0f;
+
 
     void Start()
     {
@@ -82,6 +90,17 @@ public class test_had : MonoBehaviour
 
     void LateUpdate()
     {
+        // 원격(상대) 캐릭터: 카메라를 아예 보지 않고, 네트워크로 받은 각도만 씁니다.
+        // 상대 캐릭터 입장에서 자기 카메라는 꺼져 있어서 Camera.main이 '내' 카메라를
+        // 가리키는데, 그걸 그대로 읽으면 상대 상체가 내 시선을 따라와 버립니다.
+        if (useNetworkAim)
+        {
+            ApplyBonePose(
+                Mathf.Clamp(netAngleX, -maxLookAngleX, maxLookAngleX),
+                Mathf.Clamp(netAngleY, -maxLookAngleY, maxLookAngleY));
+            return;
+        }
+
         // 카메라 스크립트 연결이 안 되었거나 누락되었다면 실행 중지 (안전 장치)
         if (cameraScript == null) return;
 
@@ -89,7 +108,7 @@ public class test_had : MonoBehaviour
         // Camera_Rotate가 이번 프레임에 이미 세팅해둔 카메라의 "의도된" 월드 회전값도
         // 같이 틀어져 버립니다 (부모가 도는 만큼 자식도 같이 돌아가므로).
         // 이 상태로 방치하면 화면을 돌리거나 반동이 걸릴 때마다 몸-카메라 정렬이
-        // 조금씩 어긋나며 계속 누적됩니다 (보고해주신 증상의 원인).
+        // 조금씩 어긋나며 계속 누적됩니다.
         // 그래서 Head/어깨를 건드리기 전에 카메라의 현재(=Camera_Rotate가 의도한) 월드 회전을
         // 미리 저장해두고, 아래에서 본들을 다 회전시킨 뒤 마지막에 이 값으로 다시 고정합니다.
         Quaternion intendedCameraRotation = Camera.main.transform.rotation;
@@ -107,10 +126,9 @@ public class test_had : MonoBehaviour
         // Unity가 쿼터니언을 오일러(X,Y,Z)로 "다시 계산"하는 과정이라 여러 조합이
         // 같은 회전을 나타낼 수 있어서(예: X=170,Y=180 ≒ X=-10,Y=0), 본이 여러 겹
         // 중첩된 체인(Head->...->Camera)을 지날 때 특정 구간에서 표현이 갑자기
-        // 다른 조합으로 튈 수 있었습니다 (원래 주석에 적혀있던 문제).
+        // 다른 조합으로 튈 수 있었습니다.
         // 본이 실제로 틀어진 정도를 반영하는 것 자체는 그대로 유지하되, 오일러각
         // 대신 로컬 정면 벡터를 직접 구해서 Atan2로 각도를 계산합니다.
-        // 이 방식은 표현이 하나로 고정돼서(연속적) 튀는 문제가 없습니다.
         Vector3 localForward = Camera.main.transform.localRotation * Vector3.forward;
         float rawAngleY = Mathf.Atan2(localForward.x, localForward.z) * Mathf.Rad2Deg;
         rawAngleY = Mathf.Clamp(rawAngleY, -maxSwayY, maxSwayY);
@@ -121,7 +139,24 @@ public class test_had : MonoBehaviour
         angleX = Mathf.Clamp(angleX, -maxLookAngleX, maxLookAngleX);
         angleY = Mathf.Clamp(angleY, -maxLookAngleY, maxLookAngleY);
 
-        // 4. 머리(Head) 상하좌우 연동 적용
+        // 4~5. 머리 / 양쪽 어깨에 실제로 각도를 적용합니다.
+        //      (원격 플레이어도 똑같은 함수를 쓰도록 아래로 분리했습니다)
+        ApplyBonePose(angleX, angleY);
+
+        // 6. Head/어깨 회전으로 인해 같이 틀어진 카메라의 월드 회전을,
+        //    Camera_Rotate가 원래 의도했던 값으로 다시 고정합니다.
+        //    → 몸/머리/팔이 아무리 움직여도 실제 1인칭 시야는 항상 정확히 유지됩니다.
+        Camera.main.transform.rotation = intendedCameraRotation;
+    }
+
+    /// <summary>
+    /// 조준 각도(상하 angleX, 좌우 angleY)를 머리와 양쪽 어깨 본에 실제로 적용합니다.
+    /// 내 캐릭터는 카메라에서 각도를 뽑아 이 함수를 부르고,
+    /// 상대 캐릭터는 네트워크로 받은 각도로 이 함수를 부릅니다. 자세 계산은 완전히 동일합니다.
+    /// </summary>
+    private void ApplyBonePose(float angleX, float angleY)
+    {
+        // 머리(Head) 상하좌우 연동
         if (headBone != null)
         {
             float finalHeadX = NormalizeAngle(defaultHeadEuler.x) + angleX + offsetAngleX;
@@ -129,7 +164,7 @@ public class test_had : MonoBehaviour
             headBone.localRotation = Quaternion.Euler(finalHeadX, finalHeadY, defaultHeadEuler.z);
         }
 
-        // 5. 양쪽 어깨 상하좌우 연동 적용 (상하 부호 반전 유지)
+        // 양쪽 어깨 상하좌우 연동 (상하 부호 반전 유지)
         if (leftShoulderBone != null)
         {
             // 재장전 상태가 바뀐 순간에만 로그 (매 프레임 찍으면 콘솔 도배됨) - 디버깅용
@@ -147,9 +182,8 @@ public class test_had : MonoBehaviour
             if (isReloading)
             {
                 // X축(reloadShoulderEulerOffset.x)만 "절대각"으로 취급합니다.
-                // reloadProgress가 0→1로 갈 때는 "지금 조준하고 있던 X각도"에서 "재장전 절대각(180.6도 등)"으로
+                // reloadProgress가 0→1로 갈 때는 "지금 조준하고 있던 X각도"에서 "재장전 절대각"으로
                 // 자연스럽게 보간되고, 1→0으로 돌아올 때는 그 시점의 조준 X각도로 다시 부드럽게 복귀합니다.
-                // (조준값을 별도로 저장했다가 되돌리는 것과 동일한 효과를, 매 프레임 현재값을 기준으로 삼아 얻습니다)
                 float reloadFinalX = Mathf.LerpAngle(finalLeftX, reloadShoulderEulerOffset.x, reloadProgress);
 
                 // Y, Z축은 기존처럼 현재 조준값 위에 상대적으로(가산) 더해집니다.
@@ -170,12 +204,8 @@ public class test_had : MonoBehaviour
             float finalRightY = NormalizeAngle(defaultRightShoulderEuler.y) + angleY + offsetAngleY;
             rightShoulderBone.localRotation = Quaternion.Euler(finalRightX, finalRightY, defaultRightShoulderEuler.z);
         }
-
-        // 6. Head/어깨 회전으로 인해 같이 틀어진 카메라의 월드 회전을,
-        //    Camera_Rotate가 원래 의도했던 값으로 다시 고정합니다.
-        //    → 몸/머리/팔이 아무리 움직여도 실제 1인칭 시야는 항상 정확히 유지됩니다.
-        Camera.main.transform.rotation = intendedCameraRotation;
     }
+
 
     private float NormalizeAngle(float angle)
     {
